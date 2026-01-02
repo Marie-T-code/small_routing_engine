@@ -1,0 +1,28 @@
+
+
+# --- Docker ---
+.env
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+
+# --- Éditeurs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Logs ---
+*.log
+
+# QGis
+
+*.gpkg
+*.qgz
+
+
+# --- Données SIG lourdes ---
+DATA
