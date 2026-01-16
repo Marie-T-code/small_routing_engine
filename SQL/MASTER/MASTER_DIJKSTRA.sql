@@ -7,6 +7,8 @@
 --
 --  
 -- ==========================================================
+SET client_min_messages = NOTICE;
+SET log_min_messages = NOTICE;
 \timing
 \o /exports/log_master.txt
 
@@ -34,18 +36,13 @@ SELECT now() AS debut_pipeline;
 \echo '--- 5️⃣ Export des nœuds isolés/anormaux ---'
 \i /SQL/graphe/011_export_vertices_geojson.sql
 
-\echo '--- 6️⃣ Export des itinéraires Dijkstra (no_snap) ---'
-\i /SQL/algorithmes/dijkstra_no_snap/012_export_geojson.sql
-\i /SQL/algorithmes/dijkstra_no_snap/013_export_geojson_centre_centre.sql
-\i /SQL/algorithmes/dijkstra_no_snap/014_export_geojson_multipoints_periph_centre.sql
-\i /SQL/algorithmes/dijkstra_no_snap/015_export_geojson_multipoints_centre_centre.sql
 
 \echo '--- 7️⃣ Création des fonctions de routage ---'
-\i /SQL/algorithmes/dijkstra_snap/016_snap_to_nearest_node_function.sql
-\i /SQL/algorithmes/dijkstra_snap/017_dijkstra_snap.sql
+\i /SQL/algorithmes/core/016_snap_to_nearest_node_function.sql
+\i /SQL/algorithmes/core/017_dijkstra_snap.sql
 
 \echo '--- 8️⃣ Stress test du routage complet (tour de ville multipoints) ---'
-\i /SQL/algorithmes/dijkstra_snap/018_stress_test_dijkstra_snap.sql
+\i /SQL/algorithmes/tests/018_stress_test_dijkstra_snap.sql
 
 \echo '--- ✅ Pipeline complet exécuté avec succès ---'
 

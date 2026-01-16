@@ -21,7 +21,7 @@ echo "------------------------------------------------------"
 
  # définir PGPASSWORD uniquement pour cette commande 
 PGPASSWORD="$POSTGRES_PASSWORD" ogr2ogr\
-  -f "PostgreSQL" PG:"host=localhost dbname=${POSTGRES_DB} user=${POSTGRES_USER} port=${PG_PORT}"\
+  -f "PostgreSQL" PG:"host=localhost dbname=${POSTGRES_DB} user=${POSTGRES_USER} port=${PGPORT}"\
   "${DATAPATH}" "${LAYER}"\
   -nln ${TABLE}\
   -lco GEOMETRY_NAME=geom\
