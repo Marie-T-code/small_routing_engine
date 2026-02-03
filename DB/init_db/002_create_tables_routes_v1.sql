@@ -1,5 +1,8 @@
+-- 002_create_tables_routes_v1.sql
+-- Purpose: Create the edges table used for pgRouting
+
 CREATE TABLE public.routes_v1 (
-    fid SERIAL PRIMARY KEY, --creation de la clef primaire. ATENTION : lors de create_topology se rappeler qu'il ne reconaitra pas fid, utiliser fid AS id
+    fid SERIAL PRIMARY KEY, -- Edge unique id (note: pgRouting algorithms expect an "id" column in the edges SQL, so use "fid AS id")
     osm_id character varying,
     bicycle character varying,
     cycleway character varying,
@@ -11,8 +14,11 @@ CREATE TABLE public.routes_v1 (
     surface character varying,
     comp integer,
     length_m double precision,
-    geom geometry(LineString, 2154), --lambert93
-    cost double precision,  -- cost, reverse_cost,source, target sont indispensable à create topology. 
+    geom geometry(LineString, 2154), -- Lambert-93 (metric SRID)
+
+    -- Routing costs (required by pgr_dijkstra / pgr_bdDijkstra)
+    -- source/target are filled by pgr_createTopology
+    cost double precision,
     reverse_cost double precision,
     source bigint,
     target bigint
