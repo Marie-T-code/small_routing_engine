@@ -1,4 +1,4 @@
-version: '3.9'
+version: '3.9' # if you are in compose v2 you can comment/delete this entire line
 
 services:
   db:
@@ -11,7 +11,6 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./DATA/clean:/import:ro
       - ./DB/init_db:/docker-entrypoint-initdb.d:ro
-      - ./exports:/exports
       - ./SQL:/SQL
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
@@ -35,6 +34,73 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+# ----------------------------
+  # PIPELINE (stub) : LOADER
+  # ----------------------------
+  loader:
+    image: postgres:16
+    profiles: ["pipeline"]
+    env_file: ./.env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./DATA/clean:/import:ro
+    user: "${UID}:${GID}"
+    command: >
+      bash -lc "
+        echo '[loader] waiting db...';
+        until psql -v ON_ERROR_STOP=1 -c 'SELECT 1' >/dev/null; do sleep 1; done;
+
+        echo '[loader] set data_loaded=true (stub)';
+        psql -v ON_ERROR_STOP=1 -c \"
+          CREATE SCHEMA IF NOT EXISTS meta;
+          CREATE TABLE IF NOT EXISTS meta.pipeline_state (
+            key text PRIMARY KEY,
+            value text NOT NULL,
+            updated_at timestamptz NOT NULL DEFAULT now()
+          );
+          INSERT INTO meta.pipeline_state(key, value)
+          VALUES ('data_loaded', 'true')
+          ON CONFLICT (key) DO UPDATE
+            SET value = EXCLUDED.value,
+                updated_at = now();
+        \";
+
+        echo '[loader] done';
+      "
+
+  # ----------------------------
+  # PIPELINE (stub) : BUILDER
+  # ----------------------------
+  builder:
+    image: postgres:16
+    profiles: ["pipeline"]
+    env_file: ./.env
+    depends_on:
+      loader:
+        condition: service_completed_successfully
+    volumes:
+      - ./SQL:/SQL:ro
+      - ./exports:/exports
+    user: "${UID}:${GID}"
+    command: >
+      bash -lc "
+              echo '[builder] waiting for data_loaded flag...';
+              until psql -v ON_ERROR_STOP=1 -tAc \"SELECT value FROM meta.pipeline_state WHERE key='data_loaded'\" | grep -qx 'true'; do sleep 1; done;
+
+              echo '[builder] set graph_built=true (stub)';
+              psql -v ON_ERROR_STOP=1 -c \"
+                INSERT INTO meta.pipeline_state(key, value)
+                VALUES ('graph_built', 'true')
+                ON CONFLICT (key) DO UPDATE
+                  SET value = EXCLUDED.value,
+                      updated_at = now();
+              \";
+
+              echo '[builder] done';
+            "
+
 
 volumes:
   pgdata:
