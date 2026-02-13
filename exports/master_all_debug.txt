@@ -1,0 +1,412 @@
+time="2026-02-13T18:23:18+01:00" level=warning msg="/home/tey/dev/projets/small_routing_engine/docker-compose.yaml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container nevers_postgis Running 
+ Container nevers_postgis Waiting 
+ Container nevers_postgis Healthy 
+ Container small_routing_engine-builder_dev-run-8ad8a2c2c7b7 Creating 
+ Container small_routing_engine-builder_dev-run-8ad8a2c2c7b7 Created 
+Pager usage is off.
+Timing is on.
+==========================================
+ MASTER ALL DEBUG START
+==========================================
+Timing is on.
+
+--- CONFIG ---
+
+>>> START : /SQL/06_MASTERS/00_MASTER_CONFIG.sql
+
+--- graph_srid, api_srid, topology_tolerance_m, and routing_default_speed ---
+
+>>> START : /SQL/01_config/routing_constants.sql
+
+CREATE FUNCTION
+Time: 0.773 ms
+
+routing_graph_srid function created
+
+CREATE FUNCTION
+Time: 0.373 ms
+
+routing_graph_api function created
+
+CREATE FUNCTION
+Time: 0.369 ms
+
+routing_topology_tolerance function created
+
+CREATE FUNCTION
+Time: 0.333 ms
+
+routing_default_speed function created
+
+
+<<< END   : /SQL/01_config/routing_constants.sql
+
+
+>>> END : /SQL/06_MASTERS/00_MASTER_CONFIG.sql
+
+
+--- GRAPH ---
+
+>>> START : /SQL/06_MASTERS/10_MASTER_GRAPH.sql
+
+--- PREPROCESSING ---
+---------------------
+--- Clean the table structure after ogr2ogr import ---
+
+>>> START : /SQL/04_graph/01_pre_processing/01_clean_table_structure.sql
+
+BEGIN
+Time: 0.032 ms
+--- Dropping column comp (not required for the minimal routing graph) ---
+psql:/SQL/04_graph/01_pre_processing/01_clean_table_structure.sql:14: NOTICE:  column "comp" of relation "routes_v1" does not exist, skipping
+ALTER TABLE
+Time: 0.155 ms
+COMMIT
+Time: 0.311 ms
+
+<<< END   : /SQL/04_graph/01_pre_processing/01_clean_table_structure.sql
+
+--- Compute edge lengths in meters (length_m) for each edge of the future graph. ---
+
+>>> START : /SQL/04_graph/01_pre_processing/02_add_length_m.sql
+
+BEGIN
+Time: 0.026 ms
+--- Computing edge lengths (length_m, meters; using ST_Transform -> graph SRID) ---
+ total_rows | already_filled | to_compute 
+------------+----------------+------------
+      86867 |          86867 |          0
+(1 row)
+
+Time: 14.315 ms
+UPDATE 0
+Time: 14.749 ms
+--- Post-check (length_m stats) ---
+ total_rows | filled_length_m |       min_m       |       avg_m        |       max_m        
+------------+-----------------+-------------------+--------------------+--------------------
+      86867 |           86867 | 1.005605547710805 | 36.737727260031306 | 1414.4867696729962
+(1 row)
+
+Time: 10.725 ms
+COMMIT
+Time: 0.064 ms
+✅ length_m computed successfully (meters).
+
+<<< END   : /SQL/04_graph/01_pre_processing/02_add_length_m.sql
+
+--- Configure routing weights (cost / reverse_cost) before building the pgRouting topology. ---
+BEGIN
+Time: 0.038 ms
+
+>>> START : /SQL/04_graph/01_pre_processing/03_costs_config.sql
+
+--- Setting cost and reverse_cost from length_m (meters) ---
+UPDATE 0
+Time: 9.517 ms
+--- Post-check (cost stats, based on length_m) ---
+ total_rows |       avg_m       |       min_m       |       max_m        
+------------+-------------------+-------------------+--------------------
+      86867 | 36.73772726003128 | 1.005605547710805 | 1414.4867696729962
+(1 row)
+
+Time: 9.803 ms
+✅ Costs configured: cost and reverse_cost are now set to length_m (meters).
+
+<<< END   : /SQL/04_graph/01_pre_processing/03_costs_config.sql
+
+COMMIT
+Time: 0.074 ms
+--- removing false edges from the routes_v1(edges) table ---
+
+>>> START : /SQL/04_graph/01_pre_processing/04_edges_cleaning.sql
+
+BEGIN
+Time: 0.052 ms
+DELETE 0
+Time: 7.500 ms
+Cleaning false edges done.
+COMMIT
+Time: 0.062 ms
+
+<<< END   : /SQL/04_graph/01_pre_processing/04_edges_cleaning.sql
+
+--- GRAPH CREATION ---
+----------------------
+--- guardrail, checks minimum viable data state without which the graph cannot be created ---
+
+>>> START : /SQL/04_graph/02_graph_creation/00_assert_graph_preconditions.sql
+
+CREATE FUNCTION
+Time: 1.616 ms
+
+<<< END   : /SQL/04_graph/02_graph_creation/00_assert_graph_preconditions.sql
+
+--- Create pgRouting topology from the routes_v1 table ---
+
+>>> START : /SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql
+
+BEGIN
+Time: 0.056 ms
+UPDATE 86867
+Time: 803.572 ms
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:18: NOTICE:  drop cascades to view routing_vertices
+DROP TABLE
+Time: 0.911 ms
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: WARNING:  pgr_createtopology(text,double precision,text,text,text,text,text,boolean) deprecated function on v3.8.0
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  PROCESSING:
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  pgr_createTopology('public.routes_v1', 1, 'geom', 'fid', 'source', 'target', rows_where := 'true', clean := f)
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  Performing checks, please wait .....
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  Creating Topology, Please wait...
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  1000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  2000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  3000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  4000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  5000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  6000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  7000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  8000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  9000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  10000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  11000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  12000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  13000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  14000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  15000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  16000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  17000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  18000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  19000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  20000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  21000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  22000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  23000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  24000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  25000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  26000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  27000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  28000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  29000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  30000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  31000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  32000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  33000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  34000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  35000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  36000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  37000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  38000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  39000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  40000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  41000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  42000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  43000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  44000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  45000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  46000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  47000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  48000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  49000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  50000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  51000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  52000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  53000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  54000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  55000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  56000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  57000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  58000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  59000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  60000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  61000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  62000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  63000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  64000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  65000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  66000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  67000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  68000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  69000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  70000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  71000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  72000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  73000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  74000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  75000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  76000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  77000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  78000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  79000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  80000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  81000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  82000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  83000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  84000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  85000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  86000 edges processed
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  -------------> TOPOLOGY CREATED FOR  86867 edges
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  Rows with NULL geometry or NULL id: 0
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  Vertices table for table public.routes_v1 is: public.routes_v1_vertices_pgr
+psql:/SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql:28: NOTICE:  ----------------------------------------------
+ pgr_createtopology 
+--------------------
+ OK
+(1 row)
+
+Time: 30860.880 ms (00:30.861)
+ nb_vertices 
+-------------
+       81158
+(1 row)
+
+Time: 6.057 ms
+COMMIT
+Time: 15.319 ms
+
+>>> END : /SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql
+
+--- GRAPH ANALYSIS ---
+----------------------
+--- Topology check on the final graph after cleaning ---
+
+>>> START : /SQL/04_graph/02_graph_creation/02_analyzeGraph.sql
+
+BEGIN
+Time: 0.212 ms
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: WARNING:  pgr_analyzegraph(text,double precision,text,text,text,text,text) deprecated function on v3.8.0
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:  PROCESSING:
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:  pgr_analyzeGraph('public.routes_v1',1,'geom','fid','source','target','true')
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:  Performing checks, please wait ...
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:  Analyzing for dead ends. Please wait...
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:  Analyzing for gaps. Please wait...
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:  Analyzing for isolated edges. Please wait...
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:  Analyzing for ring geometries. Please wait...
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:  Analyzing for intersections. Please wait...
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:              ANALYSIS RESULTS FOR SELECTED EDGES:
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:                    Isolated segments: 0
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:                            Dead ends: 3413
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:  Potential gaps found near dead ends: 5
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:               Intersections detected: 258
+psql:/SQL/04_graph/02_graph_creation/02_analyzeGraph.sql:18: NOTICE:                      Ring geometries: 0
+ pgr_analyzegraph 
+------------------
+ OK
+(1 row)
+
+Time: 2907.950 ms (00:02.908)
+ nb_isolated_nodes | nb_end_nodes | nb_invalid_nodes | total_nodes 
+-------------------+--------------+------------------+-------------
+                 5 |            0 |                0 |       81158
+(1 row)
+
+Time: 20.965 ms
+COMMIT
+Time: 7.013 ms
+
+>>> END : /SQL/04_graph/02_graph_creation/02_analyzeGraph.sql
+
+--- Verify required indexes exist for routing performance ---
+              indexname              |       tablename        
+-------------------------------------+------------------------
+ routes_v1_geom_idx                  | routes_v1
+ routes_v1_pkey                      | routes_v1
+ routes_v1_source_idx                | routes_v1
+ routes_v1_target_idx                | routes_v1
+ routes_v1_vertices_pgr_pkey         | routes_v1_vertices_pgr
+ routes_v1_vertices_pgr_the_geom_idx | routes_v1_vertices_pgr
+(6 rows)
+
+Time: 0.894 ms
+--- Length sanity checks after graph creation ---
+ zero_length_edges 
+-------------------
+                 0
+(1 row)
+
+Time: 7.646 ms
+ total_edges | min_length_m | avg_length_m | max_length_m 
+-------------+--------------+--------------+--------------
+       86867 |         1.01 |        36.74 |      1414.49
+(1 row)
+
+Time: 11.234 ms
+ very_short_edges 
+------------------
+                0
+(1 row)
+
+Time: 7.150 ms
+  id   | connected_edges 
+-------+-----------------
+ 48940 |              10
+ 30758 |               9
+(2 rows)
+
+Time: 197.578 ms
+--- VIEWS ---
+-------------
+--- Provide a stable, canonical view of routing edges for all routing algorithms. ---
+
+>>> START : /SQL/02_views/routing_edges.sql
+
+CREATE VIEW
+Time: 11.653 ms
+
+<<< END   : /SQL/02_views/routing_edges.sql
+
+--- Provides a stable, canonical view of routing vertices for all routing algorithms. ---
+
+>>> START : /SQL/02_views/routing_vertices.sql
+
+CREATE VIEW
+Time: 0.886 ms
+
+<<< END   : /SQL/02_views/routing_vertices.sql
+
+
+>>> END : /SQL/06_MASTERS/10_MASTER_GRAPH.sql
+
+
+--- ROUTING ---
+
+>>> START : /SQL/06_MASTERS/20_MASTER_ROUTING_FUNCTIONS.sql
+
+--- PREPROCESSING ---
+---------------------
+--- snap function : Snap an input geographic point (lat/lon in EPSG:4326) to the nearest graph vertex and return its vertex id. ---
+CREATE FUNCTION
+Time: 0.573 ms
+--- CORE ---
+------------
+--- Core routing function ---
+DROP FUNCTION
+Time: 0.387 ms
+CREATE FUNCTION
+Time: 0.561 ms
+--- dijkstra_snap function : Route from point A to point B with snapping ---
+DROP FUNCTION
+Time: 0.427 ms
+CREATE FUNCTION
+Time: 0.544 ms
+--- POSTPROCESSING ---
+----------------------
+--- route_metrics_nodes function : from start/end nodes -> route LINESTRING + distance + estimated time ---
+DROP FUNCTION
+Time: 1.603 ms
+CREATE FUNCTION
+Time: 0.792 ms
+--- route_metrics_snap function : Wrapper: lat/lon -> snap -> nodes -> metrics ---
+DROP FUNCTION
+Time: 0.420 ms
+CREATE FUNCTION
+Time: 0.556 ms
+--- export_api_route(...) function : Returns a single GeoJSON Feature (API SRID, default: EPSG:4326) with user-facing metrics. ---
+CREATE FUNCTION
+Time: 0.493 ms
+
+>>> END : /SQL/06_MASTERS/20_MASTER_ROUTING_FUNCTIONS.sql
+
+
+==========================================
+ MASTER ALL DEBUG DONE
+==========================================

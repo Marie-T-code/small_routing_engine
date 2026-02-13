@@ -18,6 +18,23 @@ services:
       timeout: 3s
       retries: 20
 
+# ----------------------------
+# DEV EXPORT SERVICE : BUILDER
+# ----------------------------
+
+  builder_dev:
+    image: postgres:16
+    profiles: ["devtools"]
+    env_file: ./.env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./SQL:/SQL:ro
+      - ./exports:/exports
+    user: "${UID}:${GID}"
+
+
   api:
     build: ./app
     container_name: nevers_api
