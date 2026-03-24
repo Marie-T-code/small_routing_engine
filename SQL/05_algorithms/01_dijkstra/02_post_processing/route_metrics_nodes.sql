@@ -28,71 +28,61 @@ RETURNS TABLE (
   geom_api           geometry(LineString)
 )
 LANGUAGE plpgsql AS $$
+DECLARE
+  v_edges_count bigint;
+  v_total_m     double precision;
+  v_geom_raw    geometry(LineString);
 BEGIN
-  RETURN QUERY
-  WITH segs AS (
-    -- Ordered path segments from core routing
+  WITH route AS (
     SELECT seq, geom, length_m
     FROM public.dijkstra_only(start_node, end_node)
     ORDER BY seq
   ),
+  stats AS (
+    SELECT
+      COUNT(*)::bigint AS edges_count,
+      COALESCE(SUM(length_m), 0)::double precision AS total_m
+    FROM route
+  ),
   pts AS (
-    -- Build ordered list of points (start + all segment endpoints)
     SELECT
       array_prepend(
-        (SELECT ST_StartPoint(geom)
-         FROM segs
-         ORDER BY seq
-         LIMIT 1),
+        (SELECT ST_StartPoint(geom) FROM route ORDER BY seq LIMIT 1),
         array_agg(ST_EndPoint(geom) ORDER BY seq)
       ) AS arr
-    FROM segs
+    FROM route
   ),
   line AS (
-    -- Raw geometry: no SRID contract here
-    SELECT ST_MakeLine(arr) AS geom_graph_raw
+    SELECT ST_MakeLine(arr)::geometry(LineString) AS geom_graph_raw
     FROM pts
-  ),
-  tot AS (
-    -- Total length in meters
-    SELECT COALESCE(SUM(length_m), 0)::double precision AS total_m
-    FROM segs
   )
-  SELECT
-    tot.total_m,
-    (tot.total_m / 1000.0)::double precision AS total_km,
-    CASE
-      WHEN speed_kmh IS NULL OR speed_kmh <= 0 THEN NULL
-      ELSE ((tot.total_m / 1000.0) / speed_kmh * 60.0)::double precision
-    END AS estimated_time_min,
-
-    -- Graph output: explicit SRID contract
-    ST_SetSRID(
-      line.geom_graph_raw,
-      routing_graph_srid()
-    )::geometry(LineString) AS geom_graph,
-
-    -- API output: transform from graph SRID to API SRID
-    ST_Transform(
-      ST_SetSRID(line.geom_graph_raw, routing_graph_srid()),
-      routing_api_srid()
-    )::geometry(LineString) AS geom_api
-
-  FROM tot
+  SELECT stats.edges_count, stats.total_m, line.geom_graph_raw
+  INTO   v_edges_count,     v_total_m,  v_geom_raw
+  FROM stats
   CROSS JOIN line;
 
-  -- Security: path must exist
-  IF NOT FOUND THEN
+  IF v_edges_count = 0 THEN
     RAISE EXCEPTION
       '[ROUTING:NO_PATH] no path found between selected points'
       USING ERRCODE = 'P0001';
   END IF;
 
-  -- Security: route geometry must be constructible
-  IF geom_graph IS NULL THEN
+  IF v_geom_raw IS NULL THEN
     RAISE EXCEPTION
       '[ROUTING:GEOM_NULL] route geometry could not be constructed'
       USING ERRCODE = 'P0001';
   END IF;
+
+  RETURN QUERY
+  SELECT
+    v_total_m AS total_m,
+    (v_total_m / 1000.0)::double precision AS total_km,
+    CASE
+      WHEN speed_kmh IS NULL OR speed_kmh <= 0 THEN NULL
+      ELSE ((v_total_m / 1000.0) / speed_kmh * 60.0)::double precision
+    END AS estimated_time_min,
+    ST_SetSRID(v_geom_raw, routing_graph_srid())::geometry(LineString) AS geom_graph,
+    ST_Transform(ST_SetSRID(v_geom_raw, routing_graph_srid()), routing_api_srid())::geometry(LineString) AS geom_api;
+
 END;
 $$;

@@ -23,7 +23,10 @@
 \echo '--- GRAPH CREATION ---'
 \echo '----------------------'
 
-\echo '--- guardrail, checks minimum viable data state without which the graph cannot be created ---'
+\echo '--- Define guardrail function assert_graph_preconditions_on() used by assert_graph_preconditions. This generic guardrail checks minimum viable data state without which the graph cannot be created ---'
+\i /SQL/04_graph/02_graph_creation/00_assert_graph_preconditions_on.sql
+
+\echo '--- Define wrapper guardrail function assert_graph_preconditions() ---'
 \i /SQL/04_graph/02_graph_creation/00_assert_graph_preconditions.sql
 
 \echo '--- Create pgRouting topology from the routes_v1 table ---'

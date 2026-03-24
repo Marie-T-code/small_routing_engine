@@ -21,9 +21,12 @@ FROM public.routes_v1;
 UPDATE public.routes_v1
 SET length_m = ST_Length(
   ST_Transform(
-    ST_SetSRID(geom, routing_api_srid()),
-    routing_graph_srid()
-  )
+  CASE
+    WHEN ST_SRID(geom) = 0 THEN ST_SetSRID(geom, routing_graph_srid())
+    ELSE geom
+  END,
+  routing_graph_srid()
+)
 )
 WHERE length_m IS NULL
   AND geom IS NOT NULL;

@@ -19,5 +19,5 @@ LANGUAGE sql AS $$
       'speed_kmh', export_api_route_feature_api.speed_kmh
     )
   )::json
-  FROM route_metrics_snap(lat1, lon1, lat2, lon2, speed_kmh);
+  FROM public.route_metrics_snap(lat1, lon1, lat2, lon2, speed_kmh);
 $$;

@@ -28,6 +28,7 @@ DECLARE
   s BIGINT;
   t BIGINT;
 BEGIN
+
   s := public.snap_to_nearest_node(lat1, lon1);
   t := public.snap_to_nearest_node(lat2, lon2);
 

@@ -12,19 +12,10 @@ DECLARE
     snapped_id BIGINT;
     p_graph geometry;
 BEGIN
-    -- 1) Vertices view must exist and not be empty
-    IF to_regclass('public.routing_vertices') IS NULL
-       OR NOT EXISTS (
-           SELECT 1
-           FROM public.routing_vertices
-           LIMIT 1
-       ) THEN
-        RAISE EXCEPTION
-            '[ROUTING:GRAPH_NOT_BUILT] graph not built / vertices missing'
-            USING ERRCODE = 'P0001';
-    END IF;
+    -- Guardrail: routing engine must be initialized (views, topology, srid, non-empty graph)
+    PERFORM public.assert_graph_ready();
 
-    -- Prepare point in graph SRID
+     -- Prepare point in graph SRID
     p_graph := ST_Transform(
         ST_SetSRID(ST_MakePoint(lon, lat), routing_api_srid()),
         routing_graph_srid()

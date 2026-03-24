@@ -17,7 +17,11 @@ SET source = NULL,
 
 DROP TABLE IF EXISTS public.routes_v1_vertices_pgr CASCADE;
 
--- 2) Create the routing graph
+-- 2) Guardrail: fail fast if routes_v1 is not in a buildable state (missing geom, SRID mismatch, empty table, missing cost columns, etc.)
+
+SELECT assert_graph_preconditions();
+
+-- 3) Create the routing graph
 -- Each row represents an edge, each intersection becomes a vertex
 -- A spatial tolerance of 1 meter is used to connect nearby but unconnected endpoints
 SELECT pgr_createTopology(
@@ -27,7 +31,7 @@ SELECT pgr_createTopology(
   'fid'                -- unique edge identifier
 );
 
--- 3) Quick sanity check
+-- 4) Quick sanity check
 -- Ensure that vertices have been created successfully
 SELECT COUNT(*) AS nb_vertices
 FROM public.routes_v1_vertices_pgr;

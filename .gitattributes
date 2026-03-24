@@ -1,0 +1,10 @@
+# Shell scripts must use LF (Unix)
+*.sh text eol=lf
+
+# Docker-related files
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# SQL files
+*.sql text eol=lf
