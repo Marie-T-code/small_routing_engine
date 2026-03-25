@@ -2,9 +2,17 @@
 
 A small-scale bike routing engine built with PostGIS/pgRouting, exposed through a Flask API.
 
+> This project focuses on building a routing engine from scratch with full control over data, graph construction, and routing logic.
+
 Dataset: road network of Nevers (France) + 15 km, single connected component (~76k edges)
 
 > ⚠️ Work in progress — see [Known limitations & roadmap](#known-limitations--roadmap)
+
+---
+
+## in a hurry ?
+
+Please check [Quick-start](#quick-start)  
 
 ---
 
@@ -20,8 +28,10 @@ This project explores:
 - a database-centered architecture with guardrails
 
 Is it finished? No.  
-Does it work? Yes. 
-Can it fail ? Well if it does it will tell you why
+
+Does it work? Yes.
+
+Can it fail ? Well if it does it will tell you why (it should, at least)
 
 ---
 
