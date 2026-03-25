@@ -1,4 +1,4 @@
-# Small Routing Engine
+# Small Scale Routing Engine
 
 A small-scale bike routing engine built with PostGIS/pgRouting, exposed through a Flask API.
 
