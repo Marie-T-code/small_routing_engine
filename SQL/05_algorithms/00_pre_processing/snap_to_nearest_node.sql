@@ -15,7 +15,7 @@ BEGIN
     -- Guardrail: routing engine must be initialized (views, topology, srid, non-empty graph)
     PERFORM public.assert_graph_ready();
 
-     -- Prepare point in graph SRID
+    -- Prepare point in graph SRID
     p_graph := ST_Transform(
         ST_SetSRID(ST_MakePoint(lon, lat), routing_api_srid()),
         routing_graph_srid()

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ---------------------------------------------------------------------
-# 01_import_routes.sh
+# import_routes.sh
 # Import cleaned road network from a GeoPackage into PostGIS
 # ---------------------------------------------------------------------
 set -euo pipefail

@@ -156,7 +156,7 @@ Only the main connected component is used in the current prototype.
 ## Architecture
 
 ```
-QGIS (data preparation)
+QGIS (data preparation)Checks
       ↓
 PostgreSQL / pgRouting (graph + routing)
       ↓

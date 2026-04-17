@@ -1,10 +1,10 @@
 -- SQL/05_algorithms/01_dijkstra/01_core/dijkstra_snap.sql
 --
--- Purpose: Route from point A to point B with snapping (nputs in routing_api_srid() (default: EPSG:4326)).
+-- Purpose: Route from point A to point B with snapping (inputs in routing_api_srid() (default: EPSG:4326)).
 -- Output: Minimal core result (no GeoJSON): ordered segments with geometry in EPSG:routing_graph_srid().
 -- Notes:
 -- - Snapping is performed against routing_vertices (graph vertices).
--- - The returned result is the raw path from dijkstra_only(start_vid, end_vid).
+-- - The returned result is the raw path from dijkstra_only(start_node, end_node).
 
 DROP FUNCTION IF EXISTS dijkstra_snap(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION);
 

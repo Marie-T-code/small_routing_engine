@@ -74,9 +74,10 @@ services:
         condition: service_healthy
     restart: "no"
     volumes:
-      - ./DATA/clean:/import:ro
+      - ./DATA/clean:/import
       - ./SQL:/SQL:ro
-    command: ["bash", "/SQL/03_injection/import_routes.sh"]
+      - ./docker/loader:/loader:ro
+    command: ["bash", "/loader/import_all.sh"]
     networks: 
       - routing_net
 

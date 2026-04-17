@@ -30,11 +30,9 @@
 \echo '----------------------'
 
 
-\echo '--- route_metrics_nodes function : from start/end nodes -> route LINESTRING + distance + estimated time ---'
-\i /SQL/05_algorithms/01_dijkstra/02_post_processing/route_metrics_nodes.sql
 
-\echo '--- route_metrics_snap function : Wrapper: lat/lon -> snap -> nodes -> metrics ---'
-\i /SQL/05_algorithms/01_dijkstra/02_post_processing/route_metrics_snap.sql
+\echo '--- route_metrics function : Wrapper: lat/lon -> snap ->  -> route LINESTRING + distance + estimated time ---'
+\i /SQL/05_algorithms/01_dijkstra/02_post_processing/route_metrics.sql
 
 \echo '--- export_api_route(...) function : Returns a single GeoJSON Feature (API SRID, default: EPSG:4326) with user-facing metrics. ---'
 \i /SQL/05_algorithms/01_dijkstra/04_export_modes/export_API_route_feature_api_srid_function.sql

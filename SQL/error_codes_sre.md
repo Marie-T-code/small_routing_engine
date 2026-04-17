@@ -34,4 +34,3 @@
 | # | error_code | tag | error_message | http_code |
 |:-:|------------|-----|---------------|----------:|
 |19 | P0001 | ROUTING:NO_PATH | no path found between selected points | 404 |
-|20 | P0001 | ROUTING:GEOM_NULL | route geometry could not be constructed | 500 |
