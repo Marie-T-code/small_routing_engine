@@ -13,3 +13,11 @@ documentation/
 
 ## POI
 once finished : polish it up by adding sub-categories. 
+
+## API
+- put db_connection() in the config file instead of the routes_api.py file. 
+- rename routes_api.py => blueprint.py
+
+## docker 
+
+- reorganize and simplify the .env

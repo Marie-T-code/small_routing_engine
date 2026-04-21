@@ -2,11 +2,13 @@ from flask import Flask
 from flask_cors import CORS
 from config import Config
 from routes.routes_api import routes_api
+from pois.blueprint import blueprint_pois
 
 def create_app():
     app = Flask(__name__)
     CORS(app)  # Autorise les requêtes cross-origin (utile pour le front)
     app.register_blueprint(routes_api)
+    app.register_blueprint(blueprint_pois)
     return app
 
 if __name__ == "__main__":
