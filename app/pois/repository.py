@@ -1,3 +1,7 @@
+# repository.py — database access layer for the POI service
+# Layer : Repository
+# Queries PostGIS to find POIs within a given radius along a computed route.
+
 import psycopg2
 from pois.models import POI
 from pois.enums import POICategory

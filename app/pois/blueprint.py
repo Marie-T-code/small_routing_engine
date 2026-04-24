@@ -1,6 +1,10 @@
+# blueprint.py — HTTP blueprint for the POI search service
+# Layer : Blueprint
+# Exposes /api/pois_search — finds points of interest within a given radius along a route.
+
 from flask import Blueprint, jsonify, request
 import psycopg2
-from config import Config
+from config import get_db_conn
 from pois.repository import POIRepository
 from pois.service import POIService
 from pois.dto import POISearchRequest
@@ -8,14 +12,6 @@ from pois.enums import POICategory
 
 blueprint_pois = Blueprint("blueprint_pois", __name__)
 
-def get_db_conn():
-    return psycopg2.connect(
-        host=Config.DB_HOST,
-        port=Config.DB_PORT,
-        database=Config.DB_NAME,
-        user=Config.DB_USER,
-        password=Config.DB_PASSWORD
-    )
 
 @blueprint_pois.route("/api/pois_search", methods=["GET"])
 def get_route():
@@ -42,7 +38,7 @@ def get_route():
         POISearch = POISearchRequest(lat_start, lon_start, lat_end, lon_end, category, radius_m)
 
         pois = service.search(POISearch)
-        result = pois.to_geojson()
+        result = pois.to_geojson() 
         
         return jsonify(result), 200
     except psycopg2.Error as e:

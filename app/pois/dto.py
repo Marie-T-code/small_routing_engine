@@ -1,3 +1,7 @@
+# dto.py — data transfer objects for the POI service
+# Layer : DTO
+# Defines POISearchRequest (input validation) and POISearchResponse (GeoJSON output).
+
 from dataclasses import dataclass
 from pois.enums import POICategory
 from pois.models import POI

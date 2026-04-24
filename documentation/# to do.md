@@ -15,9 +15,10 @@ documentation/
 once finished : polish it up by adding sub-categories. 
 
 ## API
-- put db_connection() in the config file instead of the routes_api.py file. 
-- rename routes_api.py => blueprint.py
+- routes/ in OOP
+- put db_connection() in the config file instead of the routes_api.py file. **done**
+- rename routes_api.py => blueprint.py **done**
 
 ## docker 
 
-- reorganize and simplify the .env
+- reorganize and simplify the .env **done**

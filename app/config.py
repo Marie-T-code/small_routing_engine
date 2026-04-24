@@ -1,20 +1,38 @@
+# config.py — environment configuration and database connection
+# Layer : Config
+# Loads environment variables, validates required ones at startup, exposes get_db_conn().
+
 import os
 import sys
+import psycopg2
 
 class Config:
     # --- Configuration Flask ---
-    FLASK_ENV = os.getenv("FLASK_ENV")
+    FLASK_DEBUG = os.getenv("FLASK_DEBUG", "False").lower() == "true"
     FLASK_PORT = int(os.getenv("FLASK_PORT"))
 
     # --- Configuration Base de données ---
-    DB_HOST = os.getenv("DB_HOST")
-    DB_PORT = os.getenv("DB_PORT")
-    DB_NAME = os.getenv("DB_NAME")
-    DB_USER = os.getenv("DB_USER")
-    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    PGHOST = os.getenv("PGHOST")
+    PGPORT = os.getenv("PGPORT")
+    PGDATABASE = os.getenv("PGDATABASE")
+    PGUSER = os.getenv("PGUSER")
+    PGPASSWORD = os.getenv("PGPASSWORD")
 
-    # ✅ Vérification des variables critiques
-    REQUIRED_VARS = ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD"]
+    # Critical variables check
+    REQUIRED_VARS = ["PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD"]
     for var in REQUIRED_VARS:
         if os.getenv(var) is None:
-            sys.exit(f"💀 ERREUR : variable d'environnement manquante → {var}")
+            sys.exit(f"ERROR : environment variable missing → {var}")
+
+
+# Standalone utility function — creates and returns a new psycopg2 connection.
+# Used by all blueprints. Each request opens its own connection and closes it in finally.
+
+def get_db_conn():
+    return psycopg2.connect(
+        host=Config.PGHOST,
+        port=Config.PGPORT,
+        database=Config.PGDATABASE,
+        user=Config.PGUSER,
+        password=Config.PGPASSWORD
+    )

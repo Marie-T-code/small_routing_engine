@@ -1,3 +1,7 @@
+# service.py — business logic layer for the POI service
+# Layer : Service
+# Orchestrates input validation and repository call, returns a POISearchResponse.
+
 from pois.repository import POIRepository
 from pois.dto import POISearchRequest, POISearchResponse
 

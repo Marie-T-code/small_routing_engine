@@ -1,3 +1,7 @@
+# models.py — domain model for the POI service
+# Layer : Model
+# Defines the POI dataclass — represents a single point of interest returned by the database.
+
 from dataclasses import dataclass
 from pois.enums import POICategory
 
