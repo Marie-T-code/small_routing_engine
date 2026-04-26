@@ -1,10 +1,10 @@
--- SQL/04_graph/02_graph_creation/00_assert_graph_preconditions.sql
+-- SQL/04_graph/04_guardrails/assert_graph_preconditions.sql
 -- wrapper guardrail function (production-ready, checks actual table table) for SQL/04_graph/02_graph_creation/00_assert_graph_preconditions_on.sql
 -- checks minimum viable data state without which the graph can't be created
 -- silent validation raise errors if something is missing
 
 \echo ''
-\echo '>>> START : /SQL/04_graph/02_graph_creation/00_assert_graph_preconditions.sql'
+\echo '>>> START : SQL/04_graph/04_guardrails/assert_graph_preconditions.sql'
 \echo ''
 
 
@@ -19,5 +19,5 @@ $$;
 
 
 \echo ''
-\echo '<<< END   : /SQL/04_graph/02_graph_creation/00_assert_graph_preconditions.sql'
+\echo '<<< END   : SQL/04_graph/04_guardrails/assert_graph_preconditions.sql'
 \echo ''

@@ -1,4 +1,4 @@
--- SQL/02_views/routing_vertices.sql
+-- SQL/04_graph/03_views/routing_vertices.sql
 -- Purpose: 
 -- Provides a stable, canonical view of routing vertices for all routing algorithms.
 --
@@ -13,7 +13,7 @@
 -- - The routing graph must be built beforehand for this view to return data.
 
 \echo ''
-\echo '>>> START : /SQL/02_views/routing_vertices.sql'
+\echo '>>> START : SQL/04_graph/03_views/routing_vertices.sql'
 \echo ''
 
 CREATE OR REPLACE VIEW routing_vertices AS
@@ -24,5 +24,5 @@ SELECT
 FROM public.routes_v1_vertices_pgr;
 
 \echo ''
-\echo '<<< END   : /SQL/02_views/routing_vertices.sql'
+\echo '<<< END   : SQL/04_graph/03_views/routing_vertices.sql'
 \echo ''

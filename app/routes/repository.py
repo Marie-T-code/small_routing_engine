@@ -4,6 +4,7 @@
 
 import psycopg2
 from routes.exceptions import RouteSearchError, RouteNotFoundError
+from utils.db_errors import parse_pg_error_code
 
 class RouteRepository:
     def __init__(self, conn):
@@ -18,9 +19,9 @@ class RouteRepository:
                 """,
                 (lat_start, lon_start, lat_end, lon_end, speed_kmh))
                 result = cursor.fetchone()[0]
-                if result is None:
-                    raise RouteNotFoundError("No path between selected points")
                 return result
         except psycopg2.Error as e:
-            raise RouteSearchError("Database Error") from e
-        
+            code = parse_pg_error_code(e)
+            if code == 'ROUTING:NO_PATH':
+                raise RouteNotFoundError(e.pgerror) from e
+            raise RouteSearchError(e.pgerror) from e

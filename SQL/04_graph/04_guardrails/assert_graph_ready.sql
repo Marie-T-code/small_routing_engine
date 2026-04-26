@@ -1,4 +1,4 @@
--- /SQL/05_algorithms/000_guardrails/assert_graph_ready.sql
+-- /SQL/04_graph/04_guardrails/assert_graph_ready.sql
 -- graph state guardrail (post-build)
 
 ------------------------------------------------------------------
@@ -28,7 +28,7 @@ BEGIN
         SELECT 1
         FROM information_schema.views
         WHERE table_schema = 'public'
-          AND table_name = 'routing_edges'
+            AND table_name = 'routing_edges'
     ) THEN
         RAISE EXCEPTION
             'GRAPH_STATE:VIEWS_MISSING | routing_edges view missing (run MASTER_GRAPH).'
@@ -39,7 +39,7 @@ BEGIN
         SELECT 1
         FROM information_schema.views
         WHERE table_schema = 'public'
-          AND table_name = 'routing_vertices'
+            AND table_name = 'routing_vertices'
     ) THEN
         RAISE EXCEPTION
             'GRAPH_STATE:VIEWS_MISSING | routing_vertices view missing (run MASTER_GRAPH).'
@@ -52,32 +52,32 @@ BEGIN
         SELECT 1
         FROM information_schema.columns
         WHERE table_schema = 'public'
-          AND table_name = 'routing_edges'
-          AND column_name = 'source'
+            AND table_name = 'routing_edges'
+            AND column_name = 'source'
     ) OR NOT EXISTS (
         SELECT 1
         FROM information_schema.columns
         WHERE table_schema = 'public'
-          AND table_name = 'routing_edges'
-          AND column_name = 'target'
+            AND table_name = 'routing_edges'
+            AND column_name = 'target'
     ) OR NOT EXISTS (
         SELECT 1
         FROM information_schema.columns
         WHERE table_schema = 'public'
-          AND table_name = 'routing_edges'
-          AND column_name = 'cost'
+            AND table_name = 'routing_edges'
+            AND column_name = 'cost'
     ) OR NOT EXISTS (
         SELECT 1
         FROM information_schema.columns
         WHERE table_schema = 'public'
-          AND table_name = 'routing_edges'
-          AND column_name = 'reverse_cost'
+            AND table_name = 'routing_edges'
+            AND column_name = 'reverse_cost'
     ) OR NOT EXISTS (
         SELECT 1
         FROM information_schema.columns
         WHERE table_schema = 'public'
-          AND table_name = 'routing_edges'
-          AND column_name = 'geom'
+            AND table_name = 'routing_edges'
+            AND column_name = 'geom'
     ) THEN
         RAISE EXCEPTION
             'GRAPH_STATE:CRITICAL_COLS_MISSING | routing_edges missing critical columns (source/target/cost/reverse_cost/geom).'
@@ -89,8 +89,8 @@ BEGIN
         SELECT 1
         FROM information_schema.columns
         WHERE table_schema = 'public'
-          AND table_name = 'routing_vertices'
-          AND column_name = 'id'
+            AND table_name = 'routing_vertices'
+            AND column_name = 'id'
     ) THEN
         RAISE EXCEPTION
             'GRAPH_STATE:CRITICAL_COLS_MISSING | routing_vertices missing id column.'
@@ -101,8 +101,8 @@ BEGIN
         SELECT 1
         FROM information_schema.columns
         WHERE table_schema = 'public'
-          AND table_name = 'routing_vertices'
-          AND column_name = 'the_geom'
+            AND table_name = 'routing_vertices'
+            AND column_name = 'the_geom'
     ) THEN
         RAISE EXCEPTION
             'GRAPH_STATE:CRITICAL_COLS_MISSING | routing_vertices missing the_geom column.'

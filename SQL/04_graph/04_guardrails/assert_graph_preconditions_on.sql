@@ -1,10 +1,10 @@
--- SQL/04_graph/02_graph_creation/00_assert_graph_preconditions_on.sql
+-- SQL/04_graph/04_guardrails/assert_graph_preconditions_on.sql
 -- guardrail function, core general logic
 -- checks minimum viable data state without which the graph can't be created
 -- silent validation raise errors if something is missing
 
 \echo ''
-\echo '>>> START : /SQL/04_graph/02_graph_creation/00_assert_graph_preconditions_on.sql'
+\echo '>>> START : SQL/04_graph/04_guardrails/assert_graph_preconditions_on.sql'
 \echo ''
 
 CREATE OR REPLACE FUNCTION assert_graph_preconditions_on(p_table_name text)
@@ -130,5 +130,5 @@ END;
 $$;
 
 \echo ''
-\echo '<<< END   : /SQL/04_graph/02_graph_creation/00_assert_graph_preconditions_on.sql'
+\echo '<<< END   : SQL/04_graph/04_guardrails/assert_graph_preconditions_on.sql'
 \echo ''

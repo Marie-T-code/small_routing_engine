@@ -22,3 +22,8 @@ once finished : polish it up by adding sub-categories.
 ## docker 
 
 - reorganize and simplify the .env **done**
+
+## NOT NOW BUT WHEN TIME
+
+-  refactor SQL files : 03_injection should be in the docker loader and the name of the files should the be 01_config; 02_graph, ...
+(this is going to take time so ... not now)

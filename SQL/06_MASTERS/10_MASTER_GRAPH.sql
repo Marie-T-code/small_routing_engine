@@ -24,10 +24,10 @@
 \echo '----------------------'
 
 \echo '--- Define guardrail function assert_graph_preconditions_on() used by assert_graph_preconditions. This generic guardrail checks minimum viable data state without which the graph cannot be created ---'
-\i /SQL/04_graph/02_graph_creation/00_assert_graph_preconditions_on.sql
+\i /SQL/04_graph/04_guardrails/assert_graph_preconditions_on.sql
 
 \echo '--- Define wrapper guardrail function assert_graph_preconditions() ---'
-\i /SQL/04_graph/02_graph_creation/00_assert_graph_preconditions.sql
+\i /SQL/04_graph/04_guardrails/assert_graph_preconditions.sql
 
 \echo '--- Create pgRouting topology from the routes_v1 table ---'
 \i /SQL/04_graph/02_graph_creation/01_PGRouting_createTopology_graph_creation.sql
@@ -50,10 +50,15 @@
 \echo '-------------'
 
 \echo '--- Provide a stable, canonical view of routing edges for all routing algorithms. ---'
-\i /SQL/02_views/routing_edges.sql
+\i /SQL/04_graph/03_views/routing_edges.sql
 
 \echo '--- Provides a stable, canonical view of routing vertices for all routing algorithms. ---'
-\i /SQL/02_views/routing_vertices.sql
+\i /SQL/04_graph/03_views/routing_vertices.sql
+
+\echo '--- POST-BUILD GUARDRAIL ---'
+\echo '---------------------------'
+\echo '--- Assert graph state is valid after full build ---'
+\i /SQL/04_graph/04_guardrails/assert_graph_ready.sql
 
 \echo ''
 \echo '>>> END : /SQL/06_MASTERS/10_MASTER_GRAPH.sql'

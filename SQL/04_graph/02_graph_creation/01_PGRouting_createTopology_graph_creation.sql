@@ -24,6 +24,7 @@ SELECT assert_graph_preconditions();
 -- 3) Create the routing graph
 -- Each row represents an edge, each intersection becomes a vertex
 -- A spatial tolerance of 1 meter is used to connect nearby but unconnected endpoints
+SET client_min_messages = WARNING;
 SELECT pgr_createTopology(
   'public.routes_v1',  -- edge table
   routing_topology_tolerance_m(),                   -- snapping tolerance in meters (depends on the graph SRID; a meter-based SRID is strongly recommended, not a degree-based one)

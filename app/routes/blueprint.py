@@ -4,12 +4,12 @@
 
 
 from flask import Blueprint, jsonify, request
-import psycopg2
 from config import get_db_conn
 from routes.repository import RouteRepository
 from routes.service import RouteService
 from routes.dto import RouteSearchRequest
 from routes.exceptions import RouteNotFoundError
+from utils.db_errors import parse_pg_error_message
 
 blueprint_route = Blueprint("blueprint_route", __name__)
 
@@ -41,11 +41,10 @@ def get_route():
 
         return jsonify(route.result), 200
     except RouteNotFoundError as e:
-        return jsonify({"status": "error", "message": str(e)}), 404
-    except psycopg2.Error as e:
-        return jsonify({"status" : "error","message" : e.pgerror or str(e)}), 500
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        message = parse_pg_error_message(str(e))
+        return jsonify({"status": "error", "message": message}), 404
+    except Exception:
+        return jsonify({"status": "error", "message": "An unexpected error occurred"}), 500
     finally:
         if conn:
             conn.close()

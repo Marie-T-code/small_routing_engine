@@ -12,7 +12,7 @@ services:
       - ./DATA/clean:/import:ro
       - ./DB/init_db:/docker-entrypoint-initdb.d:ro
       - ./SQL:/SQL
-    restart: unless-stopped
+    restart: "no"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 3s
@@ -51,12 +51,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    restart: unless-stopped
+    restart: "no"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:5000/api/test_db').status==200 else sys.exit(1)" ]
-      interval: 5s
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/test_db"]
+      interval: 30s
       timeout: 5s
       retries: 10
+      start_period: 10s
     networks: 
       - routing_net
 

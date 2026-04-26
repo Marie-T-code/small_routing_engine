@@ -1,4 +1,4 @@
--- /SQL/02_views/routing_edges.sql
+-- /SQL/04_graph/03_views/routing_edges.sql
 -- Purpose:
 --   Provide a stable, canonical view of routing edges for all routing algorithms.
 --
@@ -16,7 +16,7 @@
 --   using pgr_createTopology.
 
 \echo ''
-\echo '>>> START : /SQL/02_views/routing_edges.sql'
+\echo '>>> START : /SQL/04_graph/03_views/routing_edges.sql'
 \echo ''
 
 CREATE OR REPLACE VIEW routing_edges AS
@@ -32,5 +32,5 @@ FROM public.routes_v1;
 
 
 \echo ''
-\echo '<<< END   : /SQL/02_views/routing_edges.sql'
+\echo '<<< END   : /SQL/04_graph/03_views/routing_edges.sql'
 \echo ''

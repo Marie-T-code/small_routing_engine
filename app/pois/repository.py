@@ -5,7 +5,8 @@
 import psycopg2
 from pois.models import POI
 from pois.enums import POICategory
-from pois.exceptions import POISearchError
+from pois.exceptions import POISearchError, POIRouteNotFoundError
+from utils.db_errors import parse_pg_error_code
 
 class POIRepository:
     def __init__(self,conn):
@@ -33,7 +34,10 @@ class POIRepository:
                     (lat_start, lon_start, lat_end, lon_end, radius_m,category.value))
                 rows = cursor.fetchall()
         except psycopg2.Error as e:
-            raise POISearchError("Database Error") from e
+            code = parse_pg_error_code(e)
+            if code == 'ROUTING:NO_PATH':
+                raise POIRouteNotFoundError(e.pgerror) from e
+            raise POISearchError(e.pgerror) from e
         pois = [
             POI(
                 name=row[0], 

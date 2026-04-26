@@ -10,3 +10,6 @@ class InvalidRadiusError(Exception):
 
 class POISearchError(Exception):
     pass
+
+class POIRouteNotFoundError(Exception):
+    pass

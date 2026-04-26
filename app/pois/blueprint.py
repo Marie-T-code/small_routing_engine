@@ -3,12 +3,13 @@
 # Exposes /api/pois_search — finds points of interest within a given radius along a route.
 
 from flask import Blueprint, jsonify, request
-import psycopg2
 from config import get_db_conn
 from pois.repository import POIRepository
 from pois.service import POIService
 from pois.dto import POISearchRequest
 from pois.enums import POICategory
+from pois.exceptions import POIRouteNotFoundError
+from utils.db_errors import parse_pg_error_message
 
 blueprint_pois = Blueprint("blueprint_pois", __name__)
 
@@ -27,7 +28,7 @@ def get_route():
         if None in (lat_start, lon_start, lat_end, lon_end, category, radius_m):
             return jsonify({
                 "status": "error",
-                "message": "missing parameters. Expected : lat_start, lat_end, lon_start, lon_end, category, raduis_m"
+                "message": "missing parameters. Expected : lat_start, lat_end, lon_start, lon_end, category, radius_m"
             }), 400
         
         category = POICategory(category)
@@ -41,10 +42,11 @@ def get_route():
         result = pois.to_geojson() 
         
         return jsonify(result), 200
-    except psycopg2.Error as e:
-        return jsonify({"status" : "error","message" : e.pgerror or str(e)}), 500
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+    except POIRouteNotFoundError as e:
+        message = parse_pg_error_message(str(e))
+        return jsonify({"status": "error", "message": message}), 404
+    except Exception:
+        return jsonify({"status": "error", "message": "An unexpected error occurred"}), 500
     finally:
         if conn:
             conn.close()

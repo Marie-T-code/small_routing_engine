@@ -8,9 +8,6 @@
 \echo '--- PREPROCESSING ---'
 \echo '---------------------'
 
-\echo '--- graph state guardrail (post-build) ---'
-\i /SQL/05_algorithms/000_guardrails/assert_graph_ready.sql
-
 \echo '--- snap function : Snap an input geographic point (lat/lon in EPSG:4326) to the nearest graph vertex and return its vertex id. ---'
 \i /SQL/05_algorithms/00_pre_processing/snap_to_nearest_node.sql
 
