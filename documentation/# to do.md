@@ -7,7 +7,7 @@ documentation/
 ## core routing engine plpgsql
 
 - export_api_route_feature_api() -> in the future change the name for "export_route_api()". 
-- fix architecture decision : assert_graph_ready() needs to be called at build time not a query time
+- fix architecture decision : assert_graph_ready() needs to be called at build time not a query time **done**
 - develop assert_graph_ready -> testable version
 
 

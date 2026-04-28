@@ -57,8 +57,13 @@
 
 \echo '--- POST-BUILD GUARDRAIL ---'
 \echo '---------------------------'
-\echo '--- Assert graph state is valid after full build ---'
+
+\echo '--- Define generic guardrail assert_graph_ready_on() ---'
+\i /SQL/04_graph/04_guardrails/assert_graph_ready_on.sql
+\echo '--- Define wrapper assert_graph_ready() ---'
 \i /SQL/04_graph/04_guardrails/assert_graph_ready.sql
+\echo '--- Execute post-build graph state check ---'
+SELECT assert_graph_ready();
 
 \echo ''
 \echo '>>> END : /SQL/06_MASTERS/10_MASTER_GRAPH.sql'

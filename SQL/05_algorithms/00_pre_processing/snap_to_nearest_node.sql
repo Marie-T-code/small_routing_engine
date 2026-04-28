@@ -12,8 +12,6 @@ DECLARE
     snapped_id BIGINT;
     p_graph geometry;
 BEGIN
-    -- Guardrail: routing engine must be initialized (views, topology, srid, non-empty graph)
-    PERFORM public.assert_graph_ready();
 
     -- Prepare point in graph SRID
     p_graph := ST_Transform(
