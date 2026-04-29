@@ -1,4 +1,9 @@
+.PHONY: up down re fast help
+
 up:
+	docker compose --profile pipeline up --build
+
+fast:
 	docker compose --profile pipeline up
 
 down:
@@ -7,5 +12,8 @@ down:
 
 re: down up
 
-pipeline:
-	docker compose --profile pipeline up --build
+help:
+	@echo "make up    - build and start the full pipeline (use this first)"
+	@echo "make fast  - start without rebuild (after first run)"
+	@echo "make down  - stop and clean up"
+	@echo "make re    - restart from scratch (down + up)"
