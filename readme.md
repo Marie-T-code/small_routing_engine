@@ -26,11 +26,9 @@ Response:
 {
   "type": "Feature",
   "geometry": { "type": "LineString", "coordinates": [...] },
-    "type": "LineString"
-  },
   "properties": {
-    "distance_km": 33.17254006913723,
-    "estimated_time_min": 132.6901602765489,
+    "distance_km": 27.19,
+    "estimated_time_min": 108.78,
     "speed_kmh": 15
   }
 }
@@ -193,21 +191,18 @@ on the precomputed graph.
 **Example:**
 
 ```bash
-
 curl "http://localhost:5000/api/route?lat1=46.86025&lon1=3.16577&lat2=47.1189&lon2=3.26215&speed_kmh=15"
 ```
-
 
 **Success response (`200 OK`):** GeoJSON Feature with route geometry and metrics.
 
 ```json
+{
   "type": "Feature",
   "geometry": { "type": "LineString", "coordinates": [...] },
-    "type": "LineString"
-  },
   "properties": {
-    "distance_km": 33.17254006913723,
-    "estimated_time_min": 132.6901602765489,
+    "distance_km": 27.19,
+    "estimated_time_min": 108.78,
     "speed_kmh": 15
   }
 }
@@ -354,7 +349,8 @@ If something goes wrong, see [`docker.md`](./documentation/docker.md) for servic
 ```bash
 make help        # list available commands
 make fast        # restart without rebuilding images
-make down        # stop services and clean up network
+make down        # stop services
+make reset       # stop and clean up network (use after a crash — see docker.md)
 make re          # full restart (down + up)
 ```
 

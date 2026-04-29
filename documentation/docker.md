@@ -90,8 +90,8 @@ encountered as a new Linux user.
    a Postgres UID/GID. It would not work if you wanted to force your
    own UID/GID on it to export files.
 
-   The Makefile (`make up`, `make fast`, etc.) covers the day-to-day
-   development cycle. Devtools commands are kept as direct
+   The Makefile (`make up`, `make fast`, `make reset`, etc.) covers the
+   day-to-day development cycle. Devtools commands are kept as direct
    `docker compose` invocations below because they target one-off,
    ad-hoc operations (export this table, run that SQL file) where
    wrapping each variation in a Makefile target would add more noise
@@ -124,50 +124,75 @@ security step possible — I'll get better.)
 
 ### Orphan networks after an interrupted run
 
-When a `docker compose up` is interrupted abruptly (Ctrl+C during a
-build, a container crash, or a terminal closed before `make down`
-completes), the project's Docker network can be left in an inconsistent
-state. A subsequent `make fast` then fails with a network conflict
-error, even though the previous services appear to be stopped.
+When a `docker compose up` is interrupted abruptly (Ctrl+C twice during
+startup, a container crash, or a terminal closed before `make down`
+completes), the project's containers can be left holding a reference to
+a Docker network that no longer exists in the daemon's state. The next
+`make up` (or `make fast`) then fails with:
+
+```
+failed to set up container networking: network <id> not found
+```
 
 #### Why this happens
 
-The `make down` target explicitly removes the project's network:
+A `docker compose down` does two things atomically: it removes the
+project's containers, then removes the network they were attached to.
+If the down sequence is killed midway, the network can be deleted from
+the daemon while the containers' configuration still points to its old
+ID. On the next `up`, Docker creates a fresh `routing_net` with a
+**new** ID, but the existing containers try to attach to the **old**
+ID and fail.
+
+It's worth noting that the issue isn't a "zombie network" floating
+around — it's the inverse: the network is gone, and the containers are
+still looking for it.
+
+#### Solution: `make reset`
+
+```bash
+make reset
+make up
+```
+
+`make reset` runs:
 
 ```makefile
-down:
+reset:
 	docker compose --profile pipeline down --remove-orphans
 	docker network rm routing_net 2>/dev/null || true
 ```
 
-When `make down` doesn't execute (because the previous run was
-interrupted before reaching it), the network `routing_net` remains in
-place with allocated IPs that no longer match any running container.
-The next `make fast` cannot reconcile the state, because it tries to
-attach to an existing-but-stale network.
+Two things matter here:
 
-#### Current workaround
+- **`--remove-orphans`** is the key flag. A standard `docker compose
+  down` only removes containers that match the *current* compose
+  definition. Containers in inconsistent states (referencing a dead
+  network ID) may fall outside that definition and be skipped.
+  `--remove-orphans` forces the removal of every container carrying
+  the project's compose label, regardless of state.
 
-In practice, `make up` (which rebuilds the images, taking about a
-minute) succeeds where `make fast` fails. The mechanism is empirical:
-the rebuild itself doesn't act on the network, but the time it takes
-gives the Docker daemon enough room to clean up stale references in
-the background. This is observed, not designed.
+- **`docker network rm routing_net`** is a safety net. In rare cases
+  a stale network can survive the `down` step. The `2>/dev/null
+  || true` makes the command silent and non-failing when the network
+  is already gone, so `make reset` is always safe to run.
 
-#### Reliable cleanup, in order of severity
+This is why `make down` and `make reset` are deliberately separate
+commands. `make down` is the standard teardown for a normal session
+and stays minimal; `make reset` is explicitly a recovery command, and
+its name reflects that intent.
 
-If `make up` is not enough, the following commands escalate from
-targeted cleanup to last-resort cleanup. Try them in order — most of
-the time, level 1 or level 2 is sufficient.
+#### If `make reset` is not enough
+
+In rare cases (e.g. another Docker process holding a lock on the
+network), the targeted cleanup may not succeed. The following
+commands escalate from explicit removal to last-resort cleanup:
 
 ```bash
-# Level 1 — standard cleanup
-make down
-
-# Level 2 — explicit network removal (when make down was incomplete)
+# Explicit network removal (when make reset reported nothing removed)
 docker network rm routing_net
 
-# Level 3 — last resort (read the warning below first)
+# Last resort — read the warning below first
 docker network prune -f
 ```
 
@@ -181,15 +206,16 @@ docker network prune -f
 > If other Docker projects rely on specific network configurations,
 > their next `up` command will recreate the networks fresh — usually
 > harmless, but worth knowing before running `prune -f`. If you have
-> any doubt, prefer Level 2 (targeted removal of `routing_net` only).
+> any doubt, prefer the targeted `docker network rm routing_net`.
 
 #### Why this isn't an issue in production
 
 Production deployments run continuously. The crash-restart cycle that
-triggers orphan networks is a development artefact: in production,
-services either run or they're explicitly redeployed, with no rapid
-crash-and-restart pattern.
+triggers orphan network references is a development artefact: in
+production, services either run or they're explicitly redeployed,
+with no rapid crash-and-restart pattern.
 
-A cleaner long-term fix (a dedicated `make reset` command that
-guarantees full network cleanup, or declaring the network as external
-to docker-compose) is tracked but not yet implemented.
+A cleaner long-term fix (declaring the network as `external` to
+docker-compose, so its lifecycle is decoupled from compose's `up`/`down`)
+is tracked but not yet implemented — `make reset` covers the use case
+adequately for the current development scope.

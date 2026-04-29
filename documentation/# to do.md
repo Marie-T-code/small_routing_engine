@@ -2,7 +2,7 @@
 
 ## documentation
 documentation/
-└─ architecture.md
+└─ architecture.md **done**
 
 ## core routing engine plpgsql
 
@@ -30,11 +30,9 @@ once finished : polish it up by adding sub-categories.
 -  refactor SQL files : 03_injection should be in the docker loader and the name of the files should the be 01_config; 02_graph, ...
 (this is going to take time so ... not now)
 
-## from that damn documentation (prolly will repeat itself I'll ealn it up later)
+## from that damn documentation (prolly will repeat itself I'll clean it up later)
 
-POI category values en français — décider FR/EN à la migration Pydantic v2
-Message de /api/test_db ("is a success !") — nettoyer pendant la migration FastAPI
-Renommer export_api_route_feature_api proprement (suffixe _api doublé)
+
 Bascule progressive DROP IF EXISTS → CREATE OR REPLACE quand signatures stables
 Refacto make reset ou network external pour le bug des orphan networks
 pgr_createTopology : remplacer le reset brute force de source/target par un check d'état
