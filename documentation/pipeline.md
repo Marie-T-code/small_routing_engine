@@ -1,50 +1,346 @@
-# From data to API: Pipeline
+# Pipeline
 
-This project builds a routing engine using PostGIS/pgRouting and exposes it through a Flask API.
+End-to-end documentation of how data flows through the project, from
+OpenStreetMap sources to the API responses.
 
-## Pipeline overview
+This file focuses on **what happens, in what order, with which tools**.
+For the structure of the SQL code that handles the in-database stages,
+see [`architecture.md`](./architecture.md). For the rationale behind
+data quality choices and observed limits, see
+[`data_quality.md`](./data_quality.md).
 
-## Project structure
+---
 
+## 1. Overview
+
+The project has two preparation pipelines (one per dataset), a shared
+ingestion stage, and two runtime services:
+
+```text
+ROUTES                           POIs
+  │                                │
+  Overpass Turbo                   Geofabrik regional PBFs (×2)
+  (Nevers + 15 km)                 │
+  │                                osmium extract (bbox)  ×2
+  │                                │
+  │                                osmium merge
+  │                                │
+  │                                Temporary PostGIS DB
+  │                                (import all layers)
+  │                                │
+  QGIS                             QGIS
+  (snap, components, attributes)   (filter on amenity tag)
+  │                                │
+  nevers_clean.gpkg                nevers_clean_points.gpkg
+       │                                  │
+       └──────────────┬───────────────────┘
+                      ▼
+              ogr2ogr → PostGIS
+                      │
+        ┌─────────────┴─────────────┐
+        ▼                           ▼
+  Routing engine             POI service
+  (PL/pgSQL, nested          (Python OOP,
+   functions, Dijkstra)      ST_DWithin around route)
+        │                           │
+        └─────────────┬─────────────┘
+                      ▼
+                 Flask API
+                 (GeoJSON)
 ```
-SMALL_ROUTING_ENGINE (fast routing on small, high-quality datasets)
-├── app               (Flask API services)
-├── DATA              (input datasets - cleaned .gpkg)
-├── DB                (PostGIS image & init scripts)
-├── docker
-│   ├── builder       (graph build + routing functions service)
-│   └── loader        (data import service)
-├── documentation     (detailed project documentation)
-├── exports           (output data / debug exports)
-├── SQL
-│   ├── 01_config     (routing constants: SRID, topology tolerance, default speeds)
-│   ├── 02_views      (derived views after graph build)
-│   ├── 03_injection  (data import into DB)
-│   ├── 04_graph      (data preprocessing & graph build)
-│   ├── 05_algorithms (routing functions - Dijkstra only)
-│   ├── 06_MASTERS    (pipeline orchestration)
-│   └── XX_tests      (guardrails & future validation tests)
-├── .env              (environment variables)
-├── .gitattributes
-├── .gitignore
-└── docker-compose.yaml (service orchestration)
+
+---
+
+## 2. Design principles
+
+Two principles drive the pipeline design. Both are intentional choices,
+documented here because they explain decisions that recur throughout
+the project.
+
+### 2.1 Two preparation pipelines, one ingestion contract
+
+The routes and POIs datasets have different acquisition needs (different
+tools, different geographic scopes, different filtering logic). Forcing
+both through a single pipeline would either overload the simpler one or
+underserve the more complex one.
+
+Instead, both pipelines converge on a **shared format pivot**: a clean
+GeoPackage in EPSG:2154. From that point onward, the ingestion logic is
+identical — `ogr2ogr` imports the GeoPackage into PostGIS, and downstream
+SQL or Python services don't need to know how the data was prepared.
+
+This decoupling means the project can later add new data sources
+(elevation rasters, transit networks, local lighting data) by writing a
+new preparation pipeline that produces a compatible GeoPackage. The
+ingestion stage doesn't change.
+
+### 2.2 Different runtime philosophies per domain
+
+The two domains (routing, POI search) have very different complexity,
+and the project applies the right tool at the right level for each:
+
+- **Routing**: dense business logic (Dijkstra orchestration, snapping,
+  metrics, GeoJSON export, build-time guardrails) → implemented in
+  PL/pgSQL with **nested functions**, where the data lives. Python only
+  orchestrates the call and exposes the result.
+- **POI search**: simple business logic (find POIs near a computed
+  route → one `ST_DWithin` query) → implemented in **Python OOP**,
+  because there is no benefit to wrapping a single spatial query in
+  PL/pgSQL.
+
+This avoids two failure modes common in single-developer projects:
+putting application logic in SQL (where it becomes untestable), or
+putting performance-critical data work in Python (where it forces large
+fetches over the network).
+
+---
+
+## 3. Routes pipeline (preparation)
+
+### 3.1 Source extraction with Overpass Turbo
+
+The routes dataset is extracted via **Overpass Turbo** with a query
+targeting Nevers + a 15 km radius. Overpass Turbo automatically:
+
+- merges data across administrative boundaries (Nevers sits at the edge
+  of two regions, Bourgogne-Franche-Comté and Centre-Val de Loire)
+- snaps geometries at region borders
+- exports a GeoJSON file ready for QGIS
+
+This extraction worked but reached the limits of older hardware —
+Overpass Turbo's GeoJSON output for Nevers + 15 km nearly killed a
+5-year-old laptop and struggled to load into QGIS due to the file size.
+This experience drove the choice to use `osmium-tool` for the POI
+pipeline, where larger volumes were expected.
+
+### 3.2 QGIS preparation
+
+Inside QGIS, the routes dataset goes through:
+
+- **Reprojection** to EPSG:2154 (Lambert-93)
+- **Linestring explosion** (multilinestrings split into individual
+  linestrings, one per edge)
+- **Snapping** at 1-meter tolerance (joins disconnected segments that
+  should be continuous)
+- **Connectivity analysis** with GRASS (`v.net.components`) — labels
+  every edge with a connected-component id
+- **Main component selection** — keep only the largest component
+  (~76,000 edges)
+- **Attribute table cleaning** — keep only the columns relevant for
+  routing (`osm_id`, `highway`, `name`, `oneway`, `bicycle`,
+  `cycleway`, `surface`, `lit`, `maxspeed`, `comp`); drop everything
+  else
+
+Each of these steps is detailed in
+[`data_quality.md`](./data_quality.md), including the rationale for
+keeping or dropping specific columns.
+
+### 3.3 Export to GeoPackage
+
+The cleaned single-component layer is exported as
+`nevers_clean.gpkg`, in EPSG:2154. From this point onward, the file
+is treated as immutable input for the ingestion stage.
+
+---
+
+## 4. POIs pipeline (preparation)
+
+### 4.1 Source extraction with osmium-tool
+
+The POI dataset is extracted from two **Geofabrik PBFs** (Bourgogne and
+Centre-Val de Loire), because Nevers sits between the two regions.
+The extraction uses three osmium-tool sub-commands. Paths below assume
+the project root as the working directory.
+
+**Step 1 — Clip each regional PBF to the Nevers bounding box.**
+
+```bash
+osmium extract --bbox 2.95,46.85,3.36,47.13 \
+  ./DATA/raw/points/bourgogne.osm.pbf \
+  -o ./DATA/raw/points/nevers_bourgogne.osm.pbf
+
+osmium extract --bbox 2.95,46.85,3.36,47.13 \
+  ./DATA/raw/points/centre-260330.osm.pbf \
+  -o ./DATA/raw/points/nevers_centre.osm.pbf
 ```
 
-## Pipeline steps
+(Note: each `osmium extract` command must be on a single line in the
+shell — the line continuations above are for readability only.)
 
-1. Clean spatial data is prepared in QGIS and stored in DATA/ (see [data_quality.md](/documentation/data_quality.md) for detailed cleaning process)
+**Step 2 — Verify both clipped files contain data.**
 
-2. Docker starts the PostGIS/pgRouting database 
-3. SQL scripts initialize the database at launch (extension, schema, indexes)
-4. Data is imported into PostgreSQL 
-5. costs are computed
-6. Graph topology is computed
-7. Routing functions (Dijkstra) are created
+```bash
+osmium fileinfo ./DATA/raw/points/nevers_bourgogne.osm.pbf
+osmium fileinfo ./DATA/raw/points/nevers_centre.osm.pbf
+```
 
- **steps 2 to 7, see [docker.md](/documentation/docker.md)** 
- 
+This intermediate check catches a bbox typo or a corrupt source PBF
+before the merge step. If either file reports zero nodes/ways, the
+bbox or the source needs to be re-checked.
 
+**Step 3 — Merge the two clipped PBFs into one.**
 
+```bash
+osmium merge \
+  ./DATA/raw/points/nevers_bourgogne.osm.pbf \
+  ./DATA/raw/points/nevers_centre.osm.pbf \
+  -o ./DATA/raw/points/nevers_zone.osm.pbf
+```
 
-8. Flask API sends SQL queries to PostgreSQL
-9. The database returns routes (geometry + metrics)
+**No tag filtering at the osmium stage.** The clipped+merged PBF
+contains *every* OSM layer (roads, paths, points, polygons, amenities,
+boundaries, etc.). This is intentional: filtering is deferred to QGIS,
+where data can be **visualised before being filtered**.
+
+The reasoning is methodological: a tag-filter applied blindly at the
+extraction stage assumes that the filter is correct, which is only
+verifiable by looking at the data afterwards. Importing everything
+into a temporary store and exploring it visually catches edge cases
+(unexpected tag values, layers worth knowing about) that a blind
+filter would miss.
+
+### 4.2 Temporary PostGIS database
+
+The merged PBF is loaded into a **temporary PostGIS database** named
+`osm_explore` using `osm2pgsql`:
+
+```bash
+PGPASSWORD=$PGPASSWORD osm2pgsql \
+  -d osm_explore \
+  -U $PGUSER \
+  -H $PGHOST \
+  -P $PGPORT \
+  ./DATA/raw/points/nevers_zone.osm.pbf
+```
+
+This database is not the project's main database — it exists only as
+a staging area for visual exploration in QGIS. Once the relevant layer
+has been identified and filtered, the temporary database is dropped.
+
+This step lags slightly even on recent hardware (four layers across
+two regions), but remains tractable — well below the limits hit by
+Overpass Turbo on the routes side.
+
+### 4.3 QGIS filtering
+
+Inside QGIS, the relevant POI layer is identified and filtered:
+
+- **Layer selection**: keep only the points layer (drop ways and
+  polygons; both have their own use cases but are not in scope here)
+- **Amenity filter**: keep only points with a non-empty `amenity` tag.
+  Points without an amenity carry no semantic information for the user
+  and are dropped rather than kept as low-quality data.
+- **Categorisation**: each amenity is mapped to one of four functional
+  categories (`velo`, `ravitaillement`, `services`, `culture`). The
+  category mapping is stored in the GeoPackage itself, not in the
+  database — meaning the database receives already-categorised data.
+
+For the rationale behind the strict amenity filter (and why this
+trade-off is the opposite of the routes pipeline), see
+[`data_quality.md`](./data_quality.md).
+
+### 4.4 Export to GeoPackage
+
+The filtered POIs layer is exported as `nevers_clean_points.gpkg`,
+in EPSG:2154. The temporary `osm_explore` database is then dropped.
+
+---
+
+## 5. Common ingestion
+
+### 5.1 ogr2ogr import to PostGIS
+
+Once both GeoPackages are ready, the ingestion is uniform:
+
+```bash
+ogr2ogr -f PostgreSQL "PG:..." nevers_clean.gpkg        -nln routes_v1
+ogr2ogr -f PostgreSQL "PG:..." nevers_clean_points.gpkg -nln pois
+```
+
+The same `ogr2ogr` command pattern handles both files. Differences in
+acquisition pipeline are fully absorbed by the GeoPackage format pivot
+(see section 2.1).
+
+This stage is automated by the **loader** Docker service (see
+[`docker.md`](./docker.md)).
+
+### 5.2 SQL build pipeline
+
+After the loader exits successfully, the **builder** service runs the
+master SQL scripts in order:
+
+1. `00_MASTER_CONFIG.sql` — load configuration functions
+2. `10_MASTER_GRAPH.sql` — preprocessing, graph creation, views,
+   guardrails
+3. `20_MASTER_ROUTING_FUNCTIONS.sql` — define runtime functions
+
+Among other things, the preprocessing phase computes `length_m` for
+each edge using PostGIS spatial functions — this calculation is done
+at build time in SQL, not during the QGIS preparation. The full
+breakdown of each master and the sequence of SQL files they invoke is
+documented in [`architecture.md`](./architecture.md) section 3.
+
+---
+
+## 6. Runtime
+
+The Python API follows a layered OOP pattern: Blueprint, DTO, Service,
+Repository, with explicit responsibilities at each level. The Blueprint
+constructs the input DTO from the HTTP request; the DTO carries
+validation logic; the Service orchestrates the call to the Repository;
+the Repository runs the SQL and returns a Model.
+
+### 6.1 Routes — SQL-driven routing engine
+
+A request to `GET /api/route` flows through:
+
+```text
+HTTP request
+    → Blueprint (parses query params)
+    → DTO RouteSearchRequest (validates input)
+    → Service (orchestrates)
+    → Repository (DB call)
+    → PL/pgSQL: export_api_route_feature_api()
+        → route_metrics()
+            → dijkstra_snap()
+                → snap_to_nearest_node()
+                → dijkstra_only() [pgr_bdDijkstra]
+```
+
+The full function dependency chain is documented in
+[`architecture.md`](./architecture.md) section 4.
+
+### 6.2 POIs — Python service with ST_DWithin
+
+The POI search is much simpler. A request to `GET /api/pois` (or, in
+future versions, `/api/pois?near=<route_id>`) flows through:
+
+```text
+HTTP request
+    → Blueprint (parses query params)
+    → DTO POISearchRequest (validates input)
+    → Service (orchestrates)
+    → Repository (DB call)
+    → SQL: SELECT ... FROM pois WHERE ST_DWithin(geom, <route_geom>, <radius>)
+```
+
+Currently, `/api/pois` returns the entire FeatureCollection; the
+`ST_DWithin`-based filtering by proximity to a computed route is
+the planned extension (see project readme — Now section).
+
+---
+
+## 7. Cross-references
+
+- [`architecture.md`](./architecture.md) — SQL file structure, master
+  orchestration, function dependency chain
+- [`data_model.md`](./data_model.md) — tables, views, indexes, SRID
+  strategy, configuration functions
+- [`data_quality.md`](./data_quality.md) — preprocessing rationale,
+  observed limits, recommendations
+- [`graph_build.md`](./graph_build.md) — how `pgr_createTopology()`
+  builds the routable graph
+- [`docker.md`](./docker.md) — service orchestration that runs the
+  loader and builder
+- [`engine_functions.md`](./engine_functions.md) — full PL/pgSQL
+  function reference
