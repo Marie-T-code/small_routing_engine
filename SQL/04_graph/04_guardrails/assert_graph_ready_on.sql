@@ -19,7 +19,7 @@
 CREATE OR REPLACE FUNCTION public.assert_graph_ready_on(p_edges_view text, p_vertices_view text)
 RETURNS void
 LANGUAGE plpgsql
-as $$
+AS $$
 DECLARE
     v_edges_count              bigint;
     v_vertices_count           bigint;
@@ -143,7 +143,7 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    --4) No NULLS in critical graph fields
+    -- 4) No NULLS in critical graph fields (edges view)
 
     EXECUTE format(
         'SELECT EXISTS
@@ -190,8 +190,7 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    -- 5) SRID consistency on the graph's view's geoometry
-
+    -- 5) SRID consistency on the edges view's geometry
     EXECUTE format(
         'SELECT ST_SRID(geom)
         FROM %s
@@ -205,6 +204,42 @@ BEGIN
         RAISE EXCEPTION
             '[GRAPH_STATE:SRID_MISMATCH] %.geom SRID is %, expected %.',
             p_edges_view, v_actual_srid, v_expected_srid
+            USING ERRCODE = 'P0001';
+    END IF;
+
+    -- 6) No NULLS in critical graph fields (vertices view)
+
+
+    EXECUTE format(
+        'SELECT EXISTS
+            (SELECT 1
+            FROM %s
+            WHERE the_geom is NOT NULL)',
+            v_vertices_rel
+    )
+    INTO has_any_geom;
+
+    IF NOT has_any_geom THEN
+        RAISE EXCEPTION
+            '[GRAPH_STATE:GEOM_ALL_NULL] % has no non-NULL geometries.', p_vertices_view
+            USING ERRCODE = 'P0001';
+    END IF;
+
+    -- 7) SRID consistency on the vertices view's geometry
+
+    EXECUTE format(
+        'SELECT ST_SRID(the_geom)
+        FROM %s
+        WHERE the_geom IS NOT NULL
+        LIMIT 1',
+        v_vertices_rel
+    )
+    INTO v_actual_srid;
+
+    IF v_actual_srid <> v_expected_srid THEN
+        RAISE EXCEPTION
+            '[GRAPH_STATE:SRID_MISMATCH] %.geom SRID is %, expected %.',
+            p_vertices_view, v_actual_srid, v_expected_srid
             USING ERRCODE = 'P0001';
     END IF;
 
