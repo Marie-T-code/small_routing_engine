@@ -34,3 +34,10 @@
 | # | error_code | tag | error_message | http_code |
 |:-:|------------|-----|---------------|----------:|
 |19 | P0001 | ROUTING:NO_PATH | no path found between selected points | 404 |
+
+
+# USER INPUT ERRORS
+
+| # | error_code | tag | error_message | http_code |
+|:-:|------------|-----|---------------|----------:|
+|20 | P0001 | COVERAGE:OUT_OF_BOUNDS | Point (%, %) is outside graph coverage area. | 422 |

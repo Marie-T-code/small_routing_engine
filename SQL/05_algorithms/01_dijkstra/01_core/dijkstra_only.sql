@@ -8,7 +8,7 @@
 -- - bbox parameter filters edges spatially before Dijkstra exploration
 -- - bbox DEFAULT NULL: when NULL, routes on the full graph (no filtering)
 
-DROP FUNCTION IF EXISTS dijkstra_only(BIGINT, BIGINT);
+
 DROP FUNCTION IF EXISTS dijkstra_only(BIGINT, BIGINT, geometry);
 
 CREATE FUNCTION dijkstra_only(

@@ -1,7 +1,7 @@
--- SQL/05_algorithms/01_dijkstra/xx_debug/export_api_route_feature.sql
+-- SQL/05_algorithms/01_dijkstra/xx_debug/export_route_api_debug.geojson
 --
 -- Purpose: psql-only helper to write the API GeoJSON Feature to a file.
--- Usage (psql): \i /SQL/algorithms/dijkstra/export/export_api_route_feature.sql
+-- Usage (psql): \i /SQL/algorithms/dijkstra/export/export_route_api_debug.geojson
 -- Output file: /exports/api_route_feature_webSRID.geojson
 
 
@@ -18,9 +18,9 @@
 -- fetch default speed from DB
 SELECT routing_default_speed_kmh() AS speed_kmh \gset
 
-\o /exports/export_api_route_feature.geojson
+\o /exports/export_route_api_debug.geojson
 
-SELECT export_api_route_feature_api(
+SELECT export_route_api(
   :lat1, :lon1, :lat2, :lon2, :speed_kmh
 )::text;
 

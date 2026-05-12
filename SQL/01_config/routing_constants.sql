@@ -43,6 +43,17 @@ $$;
 \echo 'routing_topology_tolerance function created'
 \echo ''
 
+CREATE OR REPLACE FUNCTION routing_default_speed_kmh()
+RETURNS double precision
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT 15.0::double precision;
+$$;
+
+\echo ''
+\echo 'routing_default_speed_kmh function created'
+\echo ''
 
 -- Optional (next step)
 CREATE OR REPLACE FUNCTION routing_bbox_buffer_ratio()

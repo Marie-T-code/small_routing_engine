@@ -13,4 +13,5 @@ class RouteService:
         request.validate()
         route = self.repository.find_route(request.lat_start, request.lon_start, request.lat_end, request.lon_end, request.speed_kmh)
         return RouteResponse(result=route)
-    
+    def get_coverage(self):
+        return self.repository.get_coverage()

@@ -21,7 +21,7 @@
 ## API CLEANUPS (low priority — when time)
 - [ ] Fix frenglish: "test_db is a success!" → proper English message
 - [ ] POI `category` values: decide French vs English for Enums
-- [ ] Rename export_api_route_feature_api() → export_route_api()
+- [X] Rename export_api_route_feature_api() → export_route_api() **DONE**
 - [ ] Add sub-categories to POI data
 - [ ] Rename dijkstra_only → bdDijkstra_only, dijkstra_snap → bdDijkstra_snap (OR remove bd_ prefix if migration happens)
 

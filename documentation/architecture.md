@@ -113,7 +113,7 @@ build sequence without having to read the master script.
     │   └── route_metrics.sql              # Distance + time + LineString
     │
     └── 04_export_modes/
-        └── export_API_route_feature_api_srid_function.sql  # GeoJSON output
+        └── export_route_api.sql  # GeoJSON output
 ```
 
 **Why `01_dijkstra/` is nested.** The directory leaves room for future
@@ -212,14 +212,9 @@ POSTPROCESSING
   └─ route_metrics              (distance + time + LineString)
 
 EXPORT
-  └─ export_api_route_feature_api  (single GeoJSON Feature, EPSG:4326)
+  └─ export_route_api  (single GeoJSON Feature, EPSG:4326)
 ```
 
-> **Note on `export_api_route_feature_api`.** The duplicated `_api`
-> suffix is a historical artefact from an early naming iteration. It
-> is tracked for renaming in a future schema revision but kept as-is
-> in V1 to avoid breaking existing references in masters, tests, and
-> the Python repository layer.
 
 This master is the **last** to run. By the time it executes, the graph
 is fully built and validated, so the routing functions can be defined
@@ -240,7 +235,7 @@ the lowest-level operation:
                                 │
                                 ▼
             ┌───────────────────────────────────────┐
-            │   export_api_route_feature_api(...)   │
+            │   export_route_api(...)   │
             │   GeoJSON Feature in API SRID (4326)  │
             └─────────────┬─────────────────────────┘
                           │

@@ -16,9 +16,7 @@
 -- Dependencies:
 --   routing_bbox_buffer_ratio()
 
-\echo ''
-\echo '>>> START : SQL/05_algorithms/00_pre_processing/compute_routing_bbox.sql'
-\echo ''
+
 
 DROP FUNCTION IF EXISTS compute_routing_bbox(geometry, geometry);
 
@@ -37,10 +35,3 @@ AS $$
     );
 $$;
 
-\echo ''
-\echo 'compute_routing_bbox function created'
-\echo ''
-
-\echo ''
-\echo '<<< END   : SQL/05_algorithms/00_pre_processing/compute_routing_bbox.sql'
-\echo ''

@@ -65,6 +65,13 @@
 \echo '--- Execute post-build graph state check ---'
 SELECT assert_graph_ready();
 
+\echo '--- POST-BUILD GRAPH BOUNGIN BOX ---'
+\echo '-----------------------------------'
+
+\echo 'Computes graph coverage and stores the resulting polygon (EPSG:4326) in graph_coverage.'
+\i /SQL/04_graph/05_coverage/compute_graph_bbox.sql
+
+
 \echo ''
 \echo '>>> END : /SQL/06_MASTERS/10_MASTER_GRAPH.sql'
 \echo ''

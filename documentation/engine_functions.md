@@ -2,7 +2,7 @@
 
 ## Overview / call graph
 ### Entry points (called by the Flask API)
-export_api_route_feature()
+export_route_api()
   └── route_metrics()
       └── dijkstra_snap() [x2]
             └── dijkstra_only()
@@ -233,14 +233,14 @@ check the edges count from `dijkstra_snap()`. If count is 0 then raises the foll
 `dijkstra_snap()`, `routing_graph_srid()`, `routing_api_srid()`
 
 ## Export
-### export_api_route_feature_api(...)
+### export_route_api(...)
 
 **Intention**
 exports as Geojson from two sets of lat/lon coordinates the Linestring + metrics created in `route_metrics()`, function destinated to be consumed by the API.
 
 **Signature**
 ```SQL
-export_api_route_feature_api(
+export_route_api(
       lat1 DOUBLE PRECISION,
       lon1 DOUBLE PRECISION, 
       lat2 DOUBLE PRECISION,

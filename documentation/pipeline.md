@@ -300,7 +300,7 @@ HTTP request
     → DTO RouteSearchRequest (validates input)
     → Service (orchestrates)
     → Repository (DB call)
-    → PL/pgSQL: export_api_route_feature_api()
+    → PL/pgSQL: export_route_api()
         → route_metrics()
             → dijkstra_snap()
                 → snap_to_nearest_node()

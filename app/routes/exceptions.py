@@ -13,3 +13,6 @@ class InvalidSpeedError(Exception):
 
 class RouteSearchError(Exception):
     pass
+
+class PointOutOfCoverageError(Exception) :
+    pass
