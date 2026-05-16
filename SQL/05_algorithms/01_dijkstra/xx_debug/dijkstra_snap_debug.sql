@@ -1,8 +1,10 @@
--- SQL/05_algorithms/01_dijkstra/xx_debug/dijkstra_snap_debug.sql
+-- 
 --
 -- Purpose: Same routing logic as dijkstra_snap, but with additional
 --          algorithm-level fields (cost, agg_cost) exposed.
 -- Useful for validating cost / reverse_cost configuration and tuning.
+
+DROP FUNCTION IF EXISTS dijkstra_snap_debug(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION);
 
 CREATE OR REPLACE FUNCTION dijkstra_snap_debug(
   lat1 DOUBLE PRECISION, lon1 DOUBLE PRECISION,
@@ -13,36 +15,54 @@ RETURNS TABLE (
   edge_id   BIGINT,
   cost      DOUBLE PRECISION,
   agg_cost  DOUBLE PRECISION,
-  geom      geometry(LineString, routing_graph_srid()),
+  geom      geometry(LineString),
   length_m  DOUBLE PRECISION
 )
-LANGUAGE plpgsql AS $$
-DECLARE
-  s BIGINT;
-  t BIGINT;
-BEGIN
-  -- Snap input coordinates to nearest graph vertices
-  s := snap_to_nearest_node(lat1, lon1);
-  t := snap_to_nearest_node(lat2, lon2);
 
-  -- Run bidirectional Dijkstra and join edge geometries
+LANGUAGE plpgsql AS $$
+
+DECLARE
+  s_id BIGINT;
+  t_id BIGINT;
+  s_geom geometry;
+  t_geom geometry;
+  bbox geometry;
+BEGIN
+  SELECT id, the_geom INTO s_id, s_geom FROM snap_to_nearest_node(lat1, lon1);
+  SELECT id, the_geom INTO t_id, t_geom FROM snap_to_nearest_node(lat2, lon2);
+
+  bbox := compute_routing_bbox(s_geom, t_geom);
+
   RETURN QUERY
   SELECT
     d.seq,
-    d.edge AS edge_id,
+    d.edge_id,
     d.cost,
-    d.agg_cost,
-    r.geom,
-    r.length_m
-  FROM pgr_bdDijkstra(
-    'SELECT id, source, target, cost, reverse_cost FROM routing_edges',
-    s, t,
-    true
-  ) AS d
-  JOIN routing_edges AS r
-    ON d.edge = r.id
-  WHERE d.edge <> -1
-  ORDER BY d.seq;
+    SUM(d.cost) OVER (ORDER BY d.seq) AS agg_cost,
+    d.geom,
+    d.length_m
+  FROM dijkstra_only(s_id, t_id, bbox) AS d;
+
+  IF NOT FOUND THEN
+  RAISE NOTICE 'bbox path not found, retrying on full graph...';
+  -- Retry without bbox (full graph)
+    RETURN QUERY
+    SELECT  
+    d.seq,
+    d.edge_id,
+    d.cost,
+    SUM(d.cost) OVER (ORDER BY d.seq) AS agg_cost,
+    d.geom,
+    d.length_m
+    FROM public.dijkstra_only(s_id, t_id, NULL) AS d;
+  
+    -- If still no path: truly disconnected vertices
+    IF NOT FOUND THEN
+      RAISE EXCEPTION
+        '[ROUTING:NO_PATH] no path found between selected points'
+        USING ERRCODE = 'P0001';
+    END IF;
+  END IF;
 
 END;
 $$;

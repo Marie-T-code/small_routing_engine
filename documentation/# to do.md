@@ -23,7 +23,8 @@
 - [ ] POI `category` values: decide French vs English for Enums
 - [X] Rename export_api_route_feature_api() → export_route_api() **DONE**
 - [ ] Add sub-categories to POI data
-- [ ] Rename dijkstra_only → bdDijkstra_only, dijkstra_snap → bdDijkstra_snap (OR remove bd_ prefix if migration happens)
+- [X] Remove bd_ prefix and use pgr_dijkstra + reverese costs on oneway **DONE**
+- [ ] Audit on all debug functions + add "debug" category in the functions.md. 
 
 ## DOCUMENTATION
 - [ ] functions.md — finish function reference

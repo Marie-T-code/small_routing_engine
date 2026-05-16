@@ -4,7 +4,7 @@
 -- Input: start_node, end_node (vertex ids), optional bbox (Polygon in routing_graph_srid())
 -- Output: ordered path edges with geometry and per-edge length (EPSG:routing_graph_srid())
 -- Notes:
--- - Algorithm: pgr_bdDijkstra (bidirectional) for better performance
+-- - Algorithm: pgr_dijkstra 
 -- - bbox parameter filters edges spatially before Dijkstra exploration
 -- - bbox DEFAULT NULL: when NULL, routes on the full graph (no filtering)
 
@@ -42,9 +42,9 @@ BEGIN
     d.seq,
     d.edge AS edge_id,
     d.cost,
-    ST_SetSRID(r.geom, routing_graph_srid())::geometry(LineString) AS geom,
+    r.geom AS geom,
     r.length_m::DOUBLE PRECISION AS length_m
-  FROM pgr_bdDijkstra(
+  FROM pgr_dijkstra(
     edges_query,
     start_node, end_node, true
   ) AS d

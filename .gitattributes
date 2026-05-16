@@ -8,3 +8,6 @@ Dockerfile text eol=lf
 
 # SQL files
 *.sql text eol=lf
+
+# .env file
+.env text eol=lf

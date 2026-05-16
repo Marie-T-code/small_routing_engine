@@ -17,12 +17,17 @@ BEGIN;
 \echo '--- Setting cost and reverse_cost from length_m (meters) ---'
 
 -- Set cost and reverse_cost to the edge length
--- (These values are used as weights by Dijkstra / bdDijkstra)
+-- (These values are used as weights by Dijkstra)
 UPDATE public.routes_v1
-SET cost = length_m,
-    reverse_cost = length_m
-WHERE length_m IS NOT NULL
-  AND (cost IS NULL OR reverse_cost IS NULL);
+SET cost =
+  CASE WHEN oneway = '-1' THEN -1
+  ELSE length_m
+  END,
+    reverse_cost = 
+  CASE WHEN oneway = 'yes' THEN -1 
+  ELSE length_m
+  END
+WHERE length_m IS NOT NULL;
 
 \echo '--- Post-check (cost stats, based on length_m) ---'
 SELECT
