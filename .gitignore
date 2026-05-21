@@ -26,3 +26,6 @@ __pycache__/
 
 # --- Données SIG lourdes ---
 DATA
+
+# waiting for architectural decision
+dev_tools

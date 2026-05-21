@@ -8,7 +8,7 @@ from pois.repository import POIRepository
 from pois.service import POIService
 from pois.dto import POISearchRequest
 from pois.enums import POICategory
-from pois.exceptions import POIRouteNotFoundError
+from pois.exceptions import POIRouteNotFoundError, InvalidRadiusError
 from utils.db_errors import parse_pg_error_message
 
 blueprint_pois = Blueprint("blueprint_pois", __name__)
@@ -42,6 +42,13 @@ def get_route():
         result = pois.to_geojson() 
         
         return jsonify(result), 200
+    except ValueError:
+        return jsonify({
+            "status": "error",
+            "message": "Invalid category. Expected : bike, culture, services, catering"
+        }), 400
+    except InvalidRadiusError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
     except POIRouteNotFoundError as e:
         message = parse_pg_error_message(str(e))
         return jsonify({"status": "error", "message": message}), 404

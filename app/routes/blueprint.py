@@ -9,7 +9,7 @@ from config import get_db_conn
 from routes.repository import RouteRepository
 from routes.service import RouteService
 from routes.dto import RouteSearchRequest
-from routes.exceptions import RouteNotFoundError, PointOutOfCoverageError
+from routes.exceptions import RouteNotFoundError, PointOutOfCoverageError, InvalidCoordinatesError, InvalidSpeedError
 from utils.db_errors import parse_pg_error_message
 
 
@@ -42,6 +42,10 @@ def get_route():
 
         
         return jsonify(route.result), 200
+    except InvalidCoordinatesError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except InvalidSpeedError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
     except PointOutOfCoverageError as e:
         message = parse_pg_error_message(str(e))
         return jsonify({"status": "error", "message": message}), 422

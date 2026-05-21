@@ -207,6 +207,19 @@ curl "http://localhost:5000/api/route?lat1=46.86025&lon1=3.16577&lat2=47.1189&lo
   }
 }
 ```
+**Performance benchmarks**
+
+
+Tested on local environment (Docker Compose), PostgreSQL warm cache.
+
+| Route | Distance | Avg response time |
+|-------|----------|-------------------|
+| Short (Nevers ~2km) | 2.3 km | ~68ms |
+| Long (Nevers ~33km) | 33.2 km | ~258ms |
+
+Response time scales sub-linearly with distance thanks to the preprocessing 
+bounding box, which restricts the graph explored by pgRouting's Dijkstra 
+algorithm to the relevant area before routing computation.
 
 **Error responses:**
 

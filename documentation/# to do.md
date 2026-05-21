@@ -1,16 +1,24 @@
 # TO DO
 
 ## CURRENT FOCUS: BBOXES + ARCHITECTURE DECISION (MAY)
-- [ ] Add bboxes to routing engine
-- [ ] swap bd_dijkstra for dijkstra + reverse_cost
-   Migrate to dijkstra + reverse_cost for one-ways (cleaner, standard pgRouting pattern)
-- [ ] refactor routing functions to use reverse_cost
+- [X] Add bboxes to routing engine **DONE**
+- [X] swap bd_dijkstra for dijkstra + reverse_cost **DONE**
+   Migrate to dijkstra + reverse_cost for one-ways (cleaner, standard pgRouting pattern) **DONE**
+- [X]refactor routing functions to use reverse_cost **DONE**
 - [ ] Update architecture.md and functions.md to document decision
 
+### SPOTTED PROBLEMS SOLVED(MAY)
+
+- [X] Simplified the 01_PGRouting_createTopology_graph_creation.sql
+- [X] Overengineered the same file, saved it for a future "devtools" file. 
+- [X] QOL : "make psql" (enter the psql command in the terminal) + "make export" (make export + path/to/file, uses the dev_tools docker service)
+- [X]fixed 'make re' (reset + fast) from the makefile **DONE**
+
 ## NEXT: CURL TEST SUITE (post-bboxes)
-- [ ] Curl test end-to-end routes/ (with bboxes)
-- [ ] Curl test POI search
-- [ ] Complete API test suite (routes + POIs + health)
+- [X] Curl test end-to-end routes/ (with bboxes) (documented) **DONE**
+- [X] Curl test POI search **DONE**
+- [X] Complete API test suite (routes + POIs + health) **DONE**
+- [X] make test-api command added in the Makefile **DONE**
 
 ## THEN: PYTEST + TESTCONTAINERS
 - [ ] Wrap PL/pgSQL test functions (assert_graph_preconditions_on, assert_graph_ready_on) in pytest
@@ -38,8 +46,13 @@
 
 ## ROADMAP (validated)
 1. **MAY**: BBoxes + architecture decision
-2. **NEXT**: Curl test suite (post-bboxes)
+2. **MAY-> ?**: Curl test suite (post-bboxes)
 3. **NEXT**: Pytest + testcontainers
 4. **NEXT**: Simple frontend
 5. **NEXT**: Typing + Pydantic v2 + FastAPI migration
 6. **NEXT**: Performance + async + connection pooling
+
+
+## backlog : 
+
+
