@@ -3,6 +3,7 @@
 # Queries PostGIS (export_route_api()) to compute a route.
 
 import psycopg2
+import json
 from routes.exceptions import RouteSearchError, RouteNotFoundError, PointOutOfCoverageError
 from utils.db_errors import parse_pg_error_code
 
@@ -16,10 +17,11 @@ class RouteRepository:
                 cursor.execute("""
                     SELECT ST_AsGeoJSON(bbox) FROM graph_coverage LIMIT 1
                     """)
-                result = cursor.fetchone()[0]
-                if result is None:
+                raw = cursor.fetchone()[0]
+                if raw is None:
                     raise RouteSearchError("graph_coverage is empty")
-                return result
+                result = json.loads(raw)
+                return result       
         except psycopg2.Error as e:
             raise RouteSearchError(e.pgerror) from e
 
