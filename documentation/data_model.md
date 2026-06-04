@@ -32,6 +32,11 @@ as a routing cost.
 Mapbox) and the canonical SRID for GeoJSON. Coordinates are expressed
 in decimal degrees.
 
+One stored geometry is the deliberate exception to the "storage in 2154"
+rule: `graph_coverage.bbox` is kept in 4326, because it is compared
+directly against incoming API coordinates rather than used in any metric
+computation (see section 2.3).
+
 **Conversion is centralised in PL/pgSQL.** The routing functions
 transform between the two SRIDs at the boundary (snapping API
 coordinates inward, exporting GeoJSON outward). Python code never
@@ -153,13 +158,38 @@ strict:
   An untagged point cannot be assigned a category and would carry no
   useful information for the user, so it is excluded rather than kept
   as low-quality data.
-- POIs are not snapped onto routing edges. They are independent
-  geographic features overlaid on the network, not nodes within it.
+- POIs are not snapped onto routing edges. They remain independent
+  geographic features, not nodes within the graph. The POI *service*,
+  however, does not return the whole collection: it searches for POIs
+  **along a computed route**, within a radius, filtered by category
+  (see below).
 
 This is the opposite trade-off from `routes_v1`, where columns with
 sparse data are kept (the schema absorbs incompleteness). For POIs,
 incomplete records are filtered out (the data is normalised before
 storage).
+
+#### How the POI service queries this table
+
+The POI repository (`find_pois_along_route`) does **not** read `pois`
+in isolation. It computes a route first, then selects POIs near that
+route:
+
+- it `CROSS JOIN`s `route_metrics(...)` to obtain the route geometry,
+- keeps POIs within `radius_m` of that geometry via
+  `ST_DWithin(p.geom, route_geom_graph, radius_m)`,
+- filters on a **mandatory** `category` (a `POICategory` enum value),
+- orders results by distance to the route.
+
+Two consequences worth noting:
+
+- The POI search **depends on routing**. It runs `route_metrics()`, so
+  it inherits routing errors — including `[ROUTING:NO_PATH]`, which the
+  repository re-maps to a POI-specific exception.
+- It does **not** call `is_within_coverage()`, unlike the route service.
+  An out-of-area POI search therefore surfaces as a routing error rather
+  than a clean coverage error — a known gap to align during the POI test
+  pass.
 
 #### Schema
 
@@ -193,6 +223,57 @@ receives already-categorised data.
 - `geom` is constrained to `Point` geometry in EPSG:2154.
 - POIs lying outside the project's bounding box are discarded during
   preparation.
+
+---
+
+### 2.3 `graph_coverage`
+
+A single-row table holding the **coverage polygon** of the routable
+area. It exists so the API can reject out-of-area requests cheaply,
+before any routing work, rather than returning a misleading
+nearest-boundary route.
+
+#### Schema
+
+| Column | Type                       | Source   | Role                          |
+|--------|----------------------------|----------|-------------------------------|
+| `id`   | `SERIAL PRIMARY KEY`       | Auto     | Row identifier                |
+| `bbox` | `geometry(Polygon, 4326)`  | Computed | Coverage polygon (EPSG:4326)  |
+
+#### How it is built
+
+Populated at build time by `compute_graph_bbox.sql`, which is **not** a
+plain rectangle despite the column name `bbox`:
+
+```sql
+TRUNCATE graph_coverage;
+INSERT INTO graph_coverage (bbox)
+SELECT ST_Transform(
+         ST_Buffer(ST_ConvexHull(ST_Collect(the_geom)), 500),
+         routing_api_srid()
+       )
+FROM routing_vertices;
+```
+
+It takes the convex hull of every graph vertex, buffers it by 500 meters
+(the vertices are in EPSG:2154, so the buffer is metric), then transforms
+the result to EPSG:4326 for storage. The convex hull hugs the real served
+area more tightly than an axis-aligned rectangle would, and the buffer
+gives a small tolerance at the edges.
+
+Note the SRID: this is the only stored geometry in **4326**, because it is
+compared directly against API-supplied coordinates (also 4326) by
+`is_within_coverage()`. It is the "coverage polygon" in the three-bounding-
+box distinction described in
+[`engine_functions.md`](./engine_functions.md).
+
+#### Consumed by
+
+`is_within_coverage(lat, lon)` — the entry guard called by the route
+service before snapping (see
+[`engine_functions.md`](./engine_functions.md)). The POI service does
+**not** call this guard, which is a known gap (an out-of-area POI search
+currently surfaces as a routing error rather than a coverage error).
 
 ---
 
@@ -267,8 +348,9 @@ CREATE INDEX pois_geom_idx      ON public.pois      USING gist (geom);
 
 GIST indexes accelerate spatial queries: nearest-neighbor lookups
 (`<->`), distance filters (`ST_DWithin`), and bounding-box intersections
-(`&&`). They are essential for the snap-to-nearest-node operation that
-maps API-supplied coordinates to graph vertices.
+(`&&`). The index on `routes_v1.geom` serves the snap-to-nearest-node
+operation; the index on `pois.geom` serves the `ST_DWithin` proximity
+filter in the POI service (`find_pois_along_route`).
 
 ### 4.2 B-tree indexes for routing
 
@@ -300,75 +382,75 @@ It is worth noting what is deliberately not indexed:
   These are not used in current routing queries; indexing them would
   cost write performance during imports for no read benefit.
 - **`length_m`**. Used as a cost column, not as a query predicate.
-- **`category` on `pois`**. The POI dataset is small (~1000 rows) and
-  the API currently returns the full collection without filtering, so
-  a B-tree index would be overkill.
+- **`category` on `pois`**. The POI service does filter on `category`
+  (`WHERE p.category = %s`), so this is a real query predicate — but the
+  dataset is small (~1000 rows) and each search is already spatially
+  narrowed by `ST_DWithin` against the route before the category filter
+  applies. On a result set that small, a B-tree index on `category`
+  brings no measurable benefit. This is the choice to revisit first if
+  the POI table grows substantially.
 
 These choices are revisitable when (a) OSM attributes start driving
 multi-criteria costs, or (b) the POI API gains category filtering.
 
 ---
 
-## 6. Routing costs (current model)
+## 6. Routing costs — structural view
 
-The current cost configuration sets `cost = reverse_cost = length_m`,
-meaning Dijkstra-family algorithms minimize **distance**, and the graph
-is effectively **symmetric** — an edge has the same weight in both
-directions.
+This section covers *how* the cost columns are stored and populated. The
+*rationale* behind the cost model — why distance-only, why a directed
+graph, what the trade-offs are — lives in
+[`data_quality.md`](./data_quality.md) section 3, to avoid duplicating it
+here.
+
+### 6.1 How the columns are populated
+
+`cost` and `reverse_cost` are derived from `length_m`, with directionality
+encoded through the OSM `oneway` tag and pgRouting's `-1` sentinel
+convention (`03_costs_config.sql`):
 
 ```sql
 UPDATE public.routes_v1
-SET cost = length_m,
-    reverse_cost = length_m
-WHERE length_m IS NOT NULL
-  AND (cost IS NULL OR reverse_cost IS NULL);
+SET cost =
+  CASE WHEN oneway = '-1' THEN -1 ELSE length_m END,
+    reverse_cost =
+  CASE WHEN oneway = 'yes' THEN -1 ELSE length_m END
+WHERE length_m IS NOT NULL;
 ```
 
-### 6.1 Why this is a deliberate prototype choice
+A `-1` value marks a direction as not traversable. This makes the graph
+**directed**, not symmetric: a two-way edge carries `length_m` in both
+columns, while a one-way edge carries `-1` in the forbidden direction.
 
-A symmetric graph is the **optimal case** for `pgr_bdDijkstra`
-(bidirectional Dijkstra). The algorithm explores the graph from both
-endpoints simultaneously, and its efficiency depends on the two
-explorations meeting cleanly in the middle. With symmetric costs, the
-meeting-point behavior is predictable, and the algorithm achieves its
-theoretical ~2x speedup over plain Dijkstra.
+The graph is consumed by `pgr_dijkstra` with `directed := true`. Distance
+is the only optimisation criterion in the current prototype.
 
-This is why the project delivers ~145 ms median response times on
-worst-case diametral queries despite operating on a 76k-edge graph
-(see project readme).
+> **Known limitation.** The `CASE` expressions only recognise `'yes'` and
+> `'-1'`; the OSM variants `'true'` and `'1'` fall through and are treated
+> as two-way. See [`data_quality.md`](./data_quality.md) section 3.1 for
+> the full explanation and the fix path.
 
-### 6.2 What changes with real asymmetric costs
+### 6.2 The OSM attribute columns are not costs (yet)
 
-Real-world routing requires asymmetric costs:
+The descriptive OSM columns (`surface`, `lit`, `cycleway`, `highway`,
+`maxspeed`, `bicycle`) are stored but do not currently feed the cost
+function. They are kept for a future multi-criteria cost model — see
+section 2.1 (OSM tag mapping) and [`data_quality.md`](./data_quality.md)
+section 3.2.
 
-- **One-way streets**: a forbidden direction should have an infinite
-  (or sentinel) reverse cost.
-- **Slope from elevation models**: climbing costs more than descending,
-  asymmetrically, in proportion to altitude difference.
-- **Surface bonuses**: a dedicated cycleway weighs less than a parallel
-  vehicle road in the same direction; this asymmetry exists per direction.
-- **Cycleway priorities**: certain unidirectional cycle facilities
-  produce direction-dependent weights.
+### 6.3 Planned algorithmic transition
 
-When these are introduced, the symmetric assumption breaks, and
-`pgr_bdDijkstra` loses its efficiency advantage. The bidirectional
-exploration may also become numerically unstable on strongly asymmetric
-graphs.
+The current engine already runs `pgr_dijkstra` with a bounding-box
+pre-filter on the edge set (see
+[`engine_functions.md`](./engine_functions.md), `compute_routing_bbox`
+and `dijkstra_only`), which is robust to any cost asymmetry — so the
+directed model above is already supported algorithmically.
 
-### 6.3 Planned algorithmic transitions
-
-Two directions, both in the project's Later phase:
-
-- **`pgr_dijkstra` + bounding-box pre-filtering**: reduces the candidate
-  graph spatially before running classical Dijkstra. Robust to any cost
-  asymmetry.
-- **`pgr_aStar`**: uses a geographic heuristic (Euclidean distance to
-  destination) to prioritize promising nodes. Works with arbitrary edge
-  costs; the heuristic remains valid as long as the cost function does
-  not produce negative weights.
-
-Both options are documented in the project readme under
-"Multi-criteria costs" and "Raster-based costs".
+The remaining roadmap item is **`pgr_aStar`**: a geographic heuristic
+(euclidean distance to destination) to prioritise promising nodes. It
+works with arbitrary edge costs as long as the cost function produces no
+negative weights, which would pair well with the multi-criteria model
+once it lands. This is documented in the project readme.
 
 ---
 
@@ -377,13 +459,14 @@ Both options are documented in the project readme under
 Routing constants are exposed as `IMMUTABLE` PL/pgSQL functions rather
 than hardcoded literals. This is a deliberate portability choice.
 
-### 7.1 The four configuration functions
+### 7.1 The five configuration functions
 
 ```sql
 routing_graph_srid()           → 2154
 routing_api_srid()             → 4326
 routing_topology_tolerance_m() → 1.0
 routing_default_speed_kmh()    → 15.0
+routing_bbox_buffer_ratio()    → 0.30
 ```
 
 | Function                         | Used in                            |
@@ -392,6 +475,7 @@ routing_default_speed_kmh()    → 15.0
 | `routing_api_srid()`             | API coordinate reception, GeoJSON  |
 | `routing_topology_tolerance_m()` | `pgr_createTopology` tolerance     |
 | `routing_default_speed_kmh()`    | Default ETA when speed not given   |
+| `routing_bbox_buffer_ratio()`    | Performance bbox sizing in `compute_routing_bbox` |
 
 ### 7.2 Why functions, not constants
 

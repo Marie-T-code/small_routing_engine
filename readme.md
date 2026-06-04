@@ -1,7 +1,8 @@
 # Small Routing Engine
 
-A geospatial backend project: ETL pipeline from OpenStreetMap to PostGIS,
-layered Python API serving GeoJSON, with a bicycle routing engine over
+A geospatial backend project: a semi-automated ETL pipeline from
+OpenStreetMap to PostGIS (see [note on automation scope](#what-this-project-demonstrates)),
+a layered Python API serving GeoJSON, with a bicycle routing engine over
 Nevers (France) as the demonstration use case.
 
 Status: functional prototype — see [Roadmap](#roadmap)
@@ -17,7 +18,7 @@ make up
 Once the pipeline completes, query a route:
 
 ```bash
-curl "http://localhost:5000/api/route?lat1=46.86025&lon1=3.16577&lat2=47.1189&lon2=3.26215&speed_kmh=15"
+curl "http://localhost:5000/api/route?lat1=46.9862&lon1=3.1887&lat2=46.9877&lon2=3.1656&speed_kmh=15"
 ```
 
 Response:
@@ -25,10 +26,17 @@ Response:
 ```json
 {
   "type": "Feature",
-  "geometry": { "type": "LineString", "coordinates": [...] },
+  "bbox": {
+    "type": "Polygon",
+    "coordinates": [[[3.1655987, 46.9833385], ...]]
+  },
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [[3.1885301, 46.9859217], ...]
+  },
   "properties": {
-    "distance_km": 27.19,
-    "estimated_time_min": 108.78,
+    "distance_km": 2.3,
+    "estimated_time_min": 9.21,
     "speed_kmh": 15
   }
 }
@@ -62,10 +70,22 @@ deployment.
 
 ## What this project demonstrates
 
-**Geospatial ETL pipeline.** OSM PBF extraction (osmium clip on regional
-sources), import via osm2pgsql and ogr2ogr, multi-stage cleaning in QGIS
-and PL/pgSQL, merged from two regional sources (Bourgogne + Centre-Val
-de Loire) into a single coherent dataset.
+**Geospatial ETL pipeline.** OSM PBF extraction with osmium, merged from
+two regional sources (Bourgogne + Centre-Val de Loire), explored and
+cleaned in QGIS, then imported into PostGIS where the routing graph and
+its supporting tables are built and cleaned in PL/pgSQL.
+
+> **Note on automation scope.** Data *preparation* is manual; engine
+> *construction* is automated. OSM extraction (`osmium` clip/merge),
+> staging import, and pre-cleaning in QGIS are done **by hand** —
+> deliberately, to inspect the data in QGIS before committing to any
+> filter. From `ogr2ogr` onward, everything is automated: a Docker loader
+> imports the cleaned GeoPackages into PostGIS, then the SQL masters run
+> end-to-end (cost configuration, `pgr_createTopology`, routing views and
+> functions, build-time guardrails, table cleanup) — a single `make up`
+> builds the whole engine. Automating this upstream data-preparation half
+> is a [long-term goal](#long-term-goals-once-a-service-runs-in-production);
+> see [`pipeline.md`](./documentation/pipeline.md) for the step-by-step.
 
 **Spatial data modeling.** Two domain datasets (road network, points of
 interest) with explicit SRID strategy (EPSG:2154 storage, EPSG:4326 API),
@@ -79,12 +99,22 @@ re-implement.
 
 **Build-time precomputation for sub-second queries.** Edge weights, graph
 topology, vertex tables and validation are all computed at build time,
-before any query runs. At query time, bidirectional Dijkstra
-(`pgr_bdDijkstra`) runs on a graph that is already complete and validated
-— no runtime cleaning, no runtime topology fix, no runtime cost
-recomputation. On a 76k-edge single-component graph, this design delivers
-~145 ms median response time on worst-case diametral queries (measured
-on a development laptop, warm cache, 5-sample median).
+before any query runs. At query time, Dijkstra (`pgr_dijkstra`) runs on a
+graph that is already complete and validated — no runtime cleaning, no
+runtime topology fix, no runtime cost recomputation.
+
+The graph is **directed**: one-way streets are encoded per edge through
+pgRouting's `cost` / `reverse_cost` pair, following pgRouting's convention
+where a negative cost means the edge is not traversable in that direction.
+A two-way street carries `cost = reverse_cost = length_m`; a one-way street
+carries `length_m` in its allowed direction and `-1` in the other.
+`pgr_dijkstra` is called with `directed := true`, so directionality lives
+in the graph data rather than in the algorithm.
+
+On a 76k-edge single-component graph, this design keeps queries sub-second
+across Nevers and a ~15 km radius — from ~68 ms on a short urban route to
+~258 ms on a ~33 km diametral query (development laptop, warm cache, mean
+of 4–5 runs).
 
 **Layered Python API.** Flask blueprint over Service / Repository / DTO /
 Exceptions, structured error codes mapped to HTTP responses, GeoJSON
@@ -115,13 +145,19 @@ output ready for frontend consumption.
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│  ETL Pipeline (build-time)                                  │
+│  Data preparation  (manual, one-off — see note above)       │
 │                                                             │
 │  OSM PBF (Geofabrik regional)                               │
-│    └─> osmium-tool   (clip to bbox)                         │
-│    └─> osm2pgsql     (raw OSM into staging DB)              │
-│    └─> QGIS          (snapping, components, cleaning)       │
-│    └─> ogr2ogr       (cleaned GPKG into PostGIS)            │
+│    └─> osmium-tool   (clip to bbox, merge)        [manual]  │
+│    └─> osm2pgsql     (raw OSM into staging DB)     [manual] │
+│    └─> QGIS          (explore, clean, components)  [manual] │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Engine build  (automated — `make up`)                      │
+│    └─> ogr2ogr       (cleaned GPKG into PostGIS)    [auto]  │
+│        + SQL masters (graph, functions, guardrails)[auto]   │
 └─────────────────────────────────────────────────────────────┘
                           │
                           ▼
@@ -169,8 +205,9 @@ curl http://localhost:5000/api/test_db
 
 ### `GET /api/route`
 
-Computes a bicycle route between two points using bidirectional Dijkstra
-on the precomputed graph.
+Computes a bicycle route between two points using Dijkstra (`pgr_dijkstra`)
+on the precomputed directed graph. One-way streets are respected through
+per-edge `reverse_cost`.
 
 **Parameters:**
 
@@ -180,7 +217,7 @@ on the precomputed graph.
 | `lon1`      | float | yes      | EPSG:4326   | Start longitude          |
 | `lat2`      | float | yes      | EPSG:4326   | End latitude             |
 | `lon2`      | float | yes      | EPSG:4326   | End longitude            |
-| `speed_kmh` | float | yes      | 10–25       | Cycling speed for ETA    |
+| `speed_kmh` | float | yes      | `(10, 25]`  | Cycling speed for ETA    |
 
 > **Why is `speed_kmh` required?** The PL/pgSQL function has a default
 > value (15 km/h), but the API layer enforces an explicit value to make
@@ -191,7 +228,7 @@ on the precomputed graph.
 **Example:**
 
 ```bash
-curl "http://localhost:5000/api/route?lat1=46.86025&lon1=3.16577&lat2=47.1189&lon2=3.26215&speed_kmh=15"
+curl "http://localhost:5000/api/route?lat1=46.9862&lon1=3.1887&lat2=46.9877&lon2=3.1656&speed_kmh=15"
 ```
 
 **Success response (`200 OK`):** GeoJSON Feature with route geometry and metrics.
@@ -199,48 +236,134 @@ curl "http://localhost:5000/api/route?lat1=46.86025&lon1=3.16577&lat2=47.1189&lo
 ```json
 {
   "type": "Feature",
-  "geometry": { "type": "LineString", "coordinates": [...] },
+  "bbox": {
+    "type": "Polygon",
+    "coordinates": [[[3.1655987, 46.9833385], ...]]
+  },
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [[3.1885301, 46.9859217], ...]
+  },
   "properties": {
-    "distance_km": 27.19,
-    "estimated_time_min": 108.78,
+    "distance_km": 2.3,
+    "estimated_time_min": 9.21,
     "speed_kmh": 15
   }
 }
 ```
+
+> **About `bbox`.** This is the axis-aligned envelope of the returned
+> route (`ST_Envelope`), handy for fitting a map to the result. It is the
+> bounding box *of one route* — distinct from the graph coverage area
+> returned by [`/api/coverage`](#get-apicoverage), which follows the graph
+> edges. Coordinates follow GeoJSON order: `[longitude, latitude]`.
+
 **Performance benchmarks**
 
 
-Tested on local environment (Docker Compose), PostgreSQL warm cache.
+Measured on a local environment (Docker Compose), `pgr_dijkstra` on the
+directed graph, PostgreSQL warm cache, mean of 4–5 runs.
 
 | Route | Distance | Avg response time |
 |-------|----------|-------------------|
-| Short (Nevers ~2km) | 2.3 km | ~68ms |
-| Long (Nevers ~33km) | 33.2 km | ~258ms |
+| Short (Nevers ~2 km) | 2.3 km | ~68 ms |
+| Long (Nevers ~33 km) | 33.2 km | ~258 ms |
 
-Response time scales sub-linearly with distance thanks to the preprocessing 
-bounding box, which restricts the graph explored by pgRouting's Dijkstra 
-algorithm to the relevant area before routing computation.
+Response time scales sub-linearly with distance thanks to a preprocessing
+bounding box that restricts the edges Dijkstra explores to the area around
+the two endpoints. On short routes the box is small and the speedup is
+large; on long diametral routes the box approaches the full graph extent,
+so the filter naturally becomes a no-op (still sub-second here). A separate
+safety mechanism handles correctness rather than speed: if the bbox-filtered
+search finds no path, `dijkstra_snap` retries once on the full graph before
+concluding `ROUTING:NO_PATH` — so the optimization can never cause a missed
+route.
 
 **Error responses:**
 
-| HTTP | Error code        | Cause                                          |
-|------|-------------------|------------------------------------------------|
-| 400  | (validation)      | Missing or out-of-range parameters             |
-| 404  | `ROUTING:NO_PATH` | No path found between the snapped nodes        |
-| 500  | (unexpected)      | Internal error                                 |
+| HTTP | Error code               | Cause                                                       |
+|------|--------------------------|-------------------------------------------------------------|
+| 400  | (validation)             | Missing coordinates, or `speed_kmh` outside `(10, 25]`      |
+| 422  | `COVERAGE:OUT_OF_BOUNDS` | Point is outside graph coverage area                        |
+| 404  | `ROUTING:NO_PATH`        | No path found between selected points                       |
+| 500  | (unexpected)             | Internal error                                              |
+
+Build-time guardrail errors (graph preconditions and state, all returning
+500) are not user-facing and are documented separately in
+[`error_codes_sre.md`](./documentation/error_codes_sre.md).
 
 ---
 
-### `GET /api/pois`
+### `GET /api/coverage`
 
-Returns the complete points-of-interest dataset as a GeoJSON FeatureCollection.
+Returns the area covered by the routing graph, as a GeoJSON `Polygon`.
+A point outside this area cannot be routed: `/api/route` rejects it with
+`422 COVERAGE:OUT_OF_BOUNDS` (for example, coordinates in Paris fall well
+outside the Nevers graph). A frontend can use this polygon to constrain
+where users are allowed to click.
+
+The polygon is the **convex hull of the graph's nodes, buffered by a small
+margin** (`ST_Buffer(ST_ConvexHull(...))`) — it follows the real extent of
+the network rather than a bounding rectangle. The buffer keeps points
+sitting right on the network edge from being wrongly rejected.
+
+**Example:**
 
 ```bash
-curl http://localhost:5000/api/pois
+curl "http://localhost:5000/api/coverage"
 ```
 
-**Success response (`200 OK`):** GeoJSON FeatureCollection with typed
-categories (`velo`, `ravitaillement`, `services`, `culture`).
+**Success response (`200 OK`):** a bare GeoJSON `Polygon` (not a `Feature`).
+
+```json
+{
+  "type": "Polygon",
+  "coordinates": [[[3.153735269, 46.846505952], ...]]
+}
+```
+
+**Error responses:**
+
+| HTTP | Cause                                            |
+|------|--------------------------------------------------|
+| 500  | Internal error (e.g. `graph_coverage` is empty)  |
+
+---
+
+### `GET /api/pois_search`
+
+Finds points of interest **along a computed route**. The endpoint first
+computes the bicycle route between the two points, then returns POIs of the
+requested category lying within `radius_m` of that route, ordered by
+distance to it. This is route-aware search, not a radius around a single
+point.
+
+**Parameters:**
+
+| Param       | Type  | Required | Range / values                          | Description                  |
+|-------------|-------|----------|------------------------------------------|------------------------------|
+| `lat_start` | float | yes      | EPSG:4326                                | Start latitude               |
+| `lon_start` | float | yes      | EPSG:4326                                | Start longitude              |
+| `lat_end`   | float | yes      | EPSG:4326                                | End latitude                 |
+| `lon_end`   | float | yes      | EPSG:4326                                | End longitude                |
+| `category`  | str   | yes      | `bike`, `culture`, `services`, `catering`| POI category to search       |
+| `radius_m`  | float | yes      | >10 and ≤1000                            | Search radius around the route (meters) |
+
+> **Note on category values.** The API currently accepts the English enum
+> values above. The underlying dataset stores French category labels
+> (`velo`, `ravitaillement`, `services`, `culture`); this mismatch is a
+> known limitation, scheduled to be resolved in the near term. Until then,
+> use the English values.
+
+**Example:**
+
+```bash
+curl "http://localhost:5000/api/pois_search?lat_start=46.9862&lon_start=3.1887&lat_end=46.9877&lon_end=3.1656&category=catering&radius_m=200"
+```
+
+**Success response (`200 OK`):** GeoJSON FeatureCollection. Each feature
+carries its category, amenity type, name, and distance to the route,
+ordered by distance.
 
 ```json
 {
@@ -248,12 +371,32 @@ categories (`velo`, `ravitaillement`, `services`, `culture`).
   "features": [
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [...] },
-      "properties": { "category": "velo", "name": "..." }
+      "geometry": { "type": "Point", "coordinates": [3.1730732, 46.9870702] },
+      "properties": {
+        "name": "La Panade",
+        "amenity": "fast_food",
+        "category": "catering",
+        "distance_m": 106.21
+      }
     }
   ]
 }
 ```
+
+**Error responses:**
+
+| HTTP | Error code        | Cause                                              |
+|------|-------------------|----------------------------------------------------|
+| 400  | (validation)      | Missing parameters, invalid category, or `radius_m` outside `(10, 1000]` |
+| 404  | `ROUTING:NO_PATH` | No route found between the two points              |
+| 500  | (unexpected)      | Internal error                                     |
+
+> **Note.** Unlike `/api/route`, this endpoint does not pre-validate that
+> the endpoints fall within the graph coverage area, so it does not return
+> `422 COVERAGE:OUT_OF_BOUNDS`. An out-of-coverage request instead surfaces
+> as `404 ROUTING:NO_PATH` (the distant points snap to nodes with no path
+> between them). Aligning the two endpoints is a known item, scheduled with
+> the POI test pass.
 
 ---
 
@@ -267,6 +410,10 @@ small_routing_engine/
 │   ├── utils/                # Shared helpers (db_errors, etc.)
 │   ├── config.py             # DB connection, environment loading
 │   └── app.py                # Flask app entry point
+│
+├── tests/                    # Test suites
+│   ├── curl/                 # End-to-end API tests (shell)
+│   └── pytest/               # Integration tests (Flask test client)
 │
 ├── DB/                       # PostGIS image build context + init scripts
 │   └── init_db/              # Auto-run on first DB startup
@@ -360,38 +507,41 @@ If something goes wrong, see [`docker.md`](./documentation/docker.md) for servic
 ### Useful commands
 
 ```bash
-make help        # list available commands
-make fast        # restart without rebuilding images
+make up          # build and start the full pipeline — use this first
+make fast        # start without rebuilding images (after first run)
 make down        # stop services
 make reset       # stop and clean up network (use after a crash — see docker.md)
-make re          # full restart (down + up)
+make re          # quick restart (reset + fast)
+make psql        # open a psql session in the db container
+make test-api    # run the curl end-to-end test suite
+make help        # list available commands
 ```
 
 ---
 
 ## Roadmap
 
-The project follows a 5-month maturation plan, from functional prototype
-to production-ready service.
+This repository is scoped as a functional prototype. Hardening it for
+production is a deliberate next step in a separate fork, and broader engine
+features come later still.
 
-### Now (in progress)
+### Now: closing out this project
 
-- Routes module curl test suite
-- Testable version of the graph guardrails (`assert_graph_ready`)
-- Bounding box pre-filtering on routing (with dedicated error codes)
-- Bounding box visualization on the frontend
+- POI module: pytest suite + finish integration tests, get the full suite green
+- SQL-layer testing: testcontainers for the PostGIS/pgRouting layer
+- CI/CD: GitHub Actions running the suite in a dedicated Docker service
 - Minimal Leaflet frontend
 
-### Next (committed, ordered)
+### Beyond: continued in a forked project
 
-1. **Test infrastructure** — pytest + testcontainers for SQL
-2. **Type discipline** — full typing + Pydantic v2 migration
-3. **API & infra modernization** — Flask → FastAPI, Compose v2, recent
-   PostgreSQL (currently pinned to PG 16 for compatibility)
-4. **Performance** — connection pooling, query optimization
-5. **Production readiness** — deployment, observability, security basics
+Once this prototype is complete, the production-oriented evolution moves to
+a separate fork: full typing + Pydantic v2, Flask → FastAPI migration,
+connection pooling and query optimization, and deployment with observability
+and security.
 
-### Later (exploration)
+### Long-term goals: once a service runs in production
+
+Engine-level features to explore once there is a live service to build on:
 
 - Multi-criteria costs (surface, lighting, cycleways)
 - Raster-based costs (altitude, slope from elevation models)
@@ -419,26 +569,39 @@ to production-ready service.
 
 This is a functional prototype. Current scope:
 
+- **Partial one-way coverage.** One-way streets are encoded via pgRouting's
+  `cost` / `reverse_cost` convention, but the cost configuration currently
+  recognizes only the OSM value `oneway=yes` (plus `-1` for reversed
+  one-ways). The equivalent forms `oneway=true` and `oneway=1`, present in
+  the dataset, are not yet normalized and fall through to the two-way case —
+  meaning a small number of one-way segments may be allowed against their
+  legal direction during path search. Tracked in the backlog; normalization
+  is scheduled for the data-quality pass.
 - **Single connected component.** The routing engine operates on the
   largest connected component of the cleaned road network. Isolated
   components are discarded during preprocessing. Automated component
-  merging is in the [Later](#later-exploration) section.
+  merging is a [long-term goal](#long-term-goals-once-a-service-runs-in-production).
 - **Single SRID strategy.** EPSG:2154 is hardcoded for storage; deploying
   on a different territory currently requires editing the SRID
-  configuration function. SRID portability is part of the production
-  readiness phase.
-- **No automated test suite.** The graph guardrails enforce build-time
-  consistency, but no Python-level test suite exists yet. pytest +
-  testcontainers is the first item of the [Next](#next-committed-ordered)
-  phase.
+  configuration function. SRID portability belongs to the production
+  hardening done in the [forked project](#beyond-continued-in-a-forked-project).
+- **Test coverage still partial.** Build-time graph guardrails, an
+  end-to-end curl suite, and a pytest integration suite for the routes and
+  coverage endpoints (status 200/400/404/422) are all in place. Still
+  missing: pytest for the POI endpoint and testcontainers for the SQL
+  layer — both in the [Now](#now-closing-out-this-project) list.
 - **No connection pooling.** Each API request opens a new psycopg2
-  connection. Acceptable for prototype load; planned for the performance
-  phase.
+  connection. Acceptable for prototype load; pooling is part of the
+  production hardening done in the
+  [forked project](#beyond-continued-in-a-forked-project).
 - **No frontend yet.** The API serves GeoJSON ready for any client; a
   minimal Leaflet frontend is in progress.
-- **Cycling speed range.** The API enforces 10–25 km/h to reflect typical
-  urban cycling. Other ranges (e-bike, sport) would require recalibrating
-  cost weights.
+- **Cycling speed range.** The API accepts `speed_kmh` in `(10, 25]` to
+  reflect typical urban cycling. Speed does not affect routing itself —
+  edge costs are distances (`length_m`), so the path is identical at any
+  speed; the value only scales the ETA computed after routing. The bounds
+  are an input guard against implausible or unsafe ETA values, not a
+  routing constraint.
 
 ---
 

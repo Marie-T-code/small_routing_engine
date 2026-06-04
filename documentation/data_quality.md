@@ -26,7 +26,7 @@ the preprocessing stage rather than at runtime:
    must be deliberate and the data must support it.
 
 The current prototype satisfies condition 1 with a simple choice
-(`cost = reverse_cost = length_m`, distance minimisation) and
+(distance minimisation over a directed graph, see section 3) and
 satisfies condition 2 by selecting only the largest connected
 component of the OSM-derived graph. Both choices are starting points,
 not endpoints — their evolution is tracked throughout the project's
@@ -73,24 +73,43 @@ on data fusion** — see section 7.
 
 ### 3.1 Current cost model
 
-The current cost configuration is the simplest possible:
+The exact `cost` / `reverse_cost` assignment (the `CASE` expressions on
+the `oneway` tag) lives in [`data_model.md`](./data_model.md) section 6.1,
+which documents how the columns are populated. The points below describe
+*why* that model was chosen.
 
-```sql
-cost         = length_m
-reverse_cost = length_m
-```
+A `-1` cost tells pgRouting that the edge is not traversable in that
+direction. So:
 
-This means Dijkstra-family algorithms minimise distance, and the graph
-is symmetric (an edge has the same weight in both directions). This
+- a normal two-way edge has `cost = reverse_cost = length_m`
+- a one-way edge (`oneway = 'yes'`) keeps `cost = length_m` but sets
+  `reverse_cost = -1` — forward only
+- a reverse one-way edge (`oneway = '-1'`) sets `cost = -1`,
+  `reverse_cost = length_m` — backward only
+
+This produces a **directed graph**, consumed by `pgr_dijkstra` with
+`directed := true`. Distance is the only optimisation criterion. This
 choice was made for two reasons:
 
 - **It guarantees full population.** Every edge has a `length_m`
-  computed from its geometry, so every edge has a valid cost. No
-  null, no sentinel, no fallback logic.
-- **It matches the prototype's question.** The prototype is
-  designed to answer "how fast can pgRouting algorithms run on a
-  fully-populated cost column?" — not "what is the optimal route for
-  a cyclist?". Realistic cost weighting comes later.
+  computed from its geometry, so every traversable direction has a
+  valid cost. No null, no fallback logic — only the `-1` sentinel,
+  which is intentional, not missing data.
+- **It matches the prototype's question.** The prototype answers "how
+  fast can pgRouting algorithms run on a fully-populated, correctly
+  directed cost column?" — not "what is the optimal route for a
+  cyclist?". Realistic multi-criteria weighting comes later
+  (section 7.2).
+
+**Known limitation — incomplete `oneway` handling.** The `CASE`
+expressions only recognise the literal values `'yes'` and `'-1'`. OSM
+also uses `'true'` and `'1'` to mean the same thing, and both are
+present in the source data. These fall through to the `ELSE` branch
+and receive `length_m` in both directions — so a real one-way street
+tagged `oneway=true` is currently treated as two-way and can be
+routed against its legal direction. This is a tracked bug, not a
+design choice; fixing it means normalising `oneway` values during
+preprocessing before the cost assignment runs.
 
 ### 3.2 What's kept but not used yet
 
@@ -142,12 +161,16 @@ useful signal once the graph is enriched, and dropping the column
 upstream forecloses that future. The cost of keeping it is a few
 mostly-NULL columns in the table, which is cheap.
 
-**POIs — strict filtering, demand completeness.** The POIs table
-drops every point that lacks an `amenity` tag. The reasoning: a
-POI without an amenity tag carries no semantic content for the user
-("there's a thing here, we don't know what kind") and would clutter
-the API response with unusable features. Better to refuse the point
-than to keep it as dead weight.
+**POIs — strict filtering, demand completeness.** The POIs pipeline
+drops every point that lacks an `amenity` tag. This filtering happens
+during the QGIS preparation stage (the cleaned GeoPackage is already
+filtered before import); the database schema itself does not enforce
+it — `amenity` is a nullable column, and the import script loads the
+GeoPackage as-is. The reasoning behind the filter: a POI without an
+amenity tag carries no semantic content for the user ("there's a thing
+here, we don't know what kind") and would clutter the API response
+with unusable features. Better to refuse the point upstream than to
+keep it as dead weight.
 
 **Why the asymmetry.** The two datasets serve different functions.
 A routing graph is a **substrate** — completeness of structure
@@ -196,7 +219,12 @@ chose what to keep".
 
 ## 6. Graph quality status
 
-The current graph passes the standard pgRouting validation:
+The current graph passes the standard pgRouting validation. These
+figures are **build-time outputs**, not schema invariants: every
+`make build` runs `pgr_analyzeGraph()` and prints them to the
+terminal, so they can be re-verified at any time against the graph as
+actually built. The values below hold for the current Nevers extract
+and pipeline:
 
 | Metric              | Result                                  |
 |---------------------|-----------------------------------------|
@@ -210,9 +238,9 @@ near administrative boundary edges) and do not break routing. The
 graph is considered valid for the prototype's purpose: function
 testing and performance characterisation.
 
-For more on the validation framework itself (what
-`pgr_analyzeGraph` checks, where the project's guardrails fit in),
-see [`architecture.md`](./architecture.md) section 5 and section 6.
+For more on the validation framework itself (what `pgr_analyzeGraph`
+checks, where the project's guardrails fit in), see
+[`architecture.md`](./architecture.md) section 5 and section 6.
 
 ---
 

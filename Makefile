@@ -1,4 +1,4 @@
-.PHONY: up fast down reset re help
+.PHONY: up fast down reset re psql run-sql test-api help
 
 up:
 	docker compose --profile pipeline up --build
@@ -20,8 +20,8 @@ re:
 psql:
 	docker exec -it $$(docker compose ps -q db) psql
 
-export:
-	@test -n "$(FILE)" || (echo "Usage: make export FILE=chemin/vers/fichier.sql" && exit 1)
+run-sql:
+	@test -n "$(FILE)" || (echo "Usage: make run-sql FILE=path/to/file.sql" && exit 1)
 	docker compose --profile devtools run --rm builder_dev psql -f /SQL/$(FILE)
 
 test-api:
@@ -34,4 +34,5 @@ help:
 	@echo "make reset      - stop and clean up after crashes"
 	@echo "make re         - quick restart (reset + fast)"
 	@echo "make psql       - open a psql session in the db container"
-	@echo "make export FILE=path/to/file.sql - run a psql export script via devtools"
+	@echo "make run-sql FILE=path/to/file.sql - run a psql script via devtools - handy for exports on Linux"
+	@echo "make test-api   - run the curl end-to-end test suite"

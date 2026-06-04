@@ -250,19 +250,31 @@ in EPSG:2154. The temporary `osm_explore` database is then dropped.
 
 ### 5.1 ogr2ogr import to PostGIS
 
-Once both GeoPackages are ready, the ingestion is uniform:
+Once both GeoPackages are ready, each is loaded into its destination
+table by an `ogr2ogr` import script (`import_routes.sh`,
+`import_pois.sh`), orchestrated by `import_all.sh`:
 
-```bash
-ogr2ogr -f PostgreSQL "PG:..." nevers_clean.gpkg        -nln routes_v1
-ogr2ogr -f PostgreSQL "PG:..." nevers_clean_points.gpkg -nln pois
-```
+| GeoPackage                   | Internal layer        | Destination table |
+|------------------------------|-----------------------|-------------------|
+| `nevers_clean.gpkg`          | `roads_clean_v1`      | `public.routes_v1`|
+| `nevers_clean_points.gpkg`   | `nevers_clean_points` | `public.pois`     |
 
-The same `ogr2ogr` command pattern handles both files. Differences in
-acquisition pipeline are fully absorbed by the GeoPackage format pivot
-(see section 2.1).
+Each script truncates its target table, then appends the layer. The
+`TRUNCATE` + `-append` combination is a deliberate choice: it keeps the
+import **idempotent** (re-running never duplicates rows) while
+`-append -addfields` acts as a safety net — if the GeoPackage gains a
+column between iterations, the import absorbs it instead of failing.
+This is a prototype-stage convenience; the import will be tightened once
+the schema is final.
 
-This stage is automated by the **loader** Docker service (see
-[`docker.md`](./docker.md)).
+Differences in acquisition pipeline are fully absorbed by the GeoPackage
+format pivot (see section 2.1): the same script pattern handles both
+files, only the layer name, geometry type, and destination differ.
+
+The full commands (connection string, `ogr2ogr` flags, env-var
+conventions) and how this stage runs inside Docker are documented in
+[`docker.md`](./docker.md). This stage is automated by the **loader**
+service.
 
 ### 5.2 SQL build pipeline
 
@@ -304,7 +316,7 @@ HTTP request
         → route_metrics()
             → dijkstra_snap()
                 → snap_to_nearest_node()
-                → dijkstra_only() [pgr_bdDijkstra]
+                → dijkstra_only() [pgr_dijkstra, directed]
 ```
 
 The full function dependency chain is documented in
@@ -312,21 +324,39 @@ The full function dependency chain is documented in
 
 ### 6.2 POIs — Python service with ST_DWithin
 
-The POI search is much simpler. A request to `GET /api/pois` (or, in
-future versions, `/api/pois?near=<route_id>`) flows through:
+The POI search runs as a Python OOP service over a single spatial query.
+A request to `GET /api/pois_search` flows through:
 
 ```text
 HTTP request
     → Blueprint (parses query params)
-    → DTO POISearchRequest (validates input)
+    → DTO (validates input)
     → Service (orchestrates)
-    → Repository (DB call)
-    → SQL: SELECT ... FROM pois WHERE ST_DWithin(geom, <route_geom>, <radius>)
+    → Repository: find_pois_along_route()
+    → SQL: SELECT ... FROM pois
+           CROSS JOIN route_metrics(...) AS r
+           WHERE ST_DWithin(pois.geom, r.route_geom_graph, radius_m)
+             AND category = <category>
+           ORDER BY distance
 ```
 
-Currently, `/api/pois` returns the entire FeatureCollection; the
-`ST_DWithin`-based filtering by proximity to a computed route is
-the planned extension (see project readme — Now section).
+The search is **route-relative**, not a full-collection dump: it computes
+a route via `route_metrics()`, then keeps the POIs within `radius_m` of
+that route, filtered by a mandatory category, ordered by distance.
+
+Two consequences flow from this design:
+
+- **It depends on routing.** Because the query calls `route_metrics()`,
+  the POI search inherits routing failures — notably `[ROUTING:NO_PATH]`,
+  which the repository re-maps to a POI-specific exception
+  (`POIRouteNotFoundError`).
+- **It does not yet check coverage.** Unlike the route service, the POI
+  path does not call `is_within_coverage()`. An out-of-area POI search
+  therefore surfaces as a routing error rather than a clean coverage
+  error — a known gap to align during the POI test pass.
+
+The data-layer view of this query (which index serves it, why category
+is a real predicate) is in [`data_model.md`](./data_model.md) section 2.2.
 
 ---
 

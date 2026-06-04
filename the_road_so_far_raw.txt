@@ -1,0 +1,24 @@
+2026-01 | initial commit
+2026-01 | 01_16_first_refactorisation_separating_functions_roles
+2026-02 | 02_03_engine_guardrails_fail_fast_if_problem_silent_run_if_not
+2026-02 | 04_02 docker: validate pipeline orchestration with stub services
+2026-02 | 13_02 baseline: masters+graph+routing SQL OK (logging + pipeline stable)
+2026-03 | feat: routing engine milestone — guardrails, pipeline, Flask API and documentation
+2026-03 | Update project title to 'Small Scale Routing Engine'
+2026-03 | readme adjustmens
+2026-03 | merging changes github & vscode
+2026-04 | Routing engine architecture changes and OOP service creation
+2026-04 | Tiny milestone : finished  "pois" OOP python service
+2026-04 | api routes service: transformed blueprint in  OOP routing service
+2026-04 | refactor: move views and guardrails to 04_graph, add structured SQL error handling
+2026-04 | assert_graph_ready - production ready with the creation of "assert_graph_ready_on.sql" - architecture fixed : guardrails in the graph folder - MASTER_GRAPH modified - guardrail called at graph build time : modified the snap_to_nearest_node function so the guardrail isn't called at query anymore
+2026-04 | docs: rewrite readme, add data_model.md and architecture.md, refresh docker.md
+2026-04 | docker containers pointing to dead network bug solved
+2026-04 | docs: refresh graph_build, pipeline, and data_quality documentation
+2026-05 | documentation finished for April - added a readme.md in the documentation folder for clarity - finished and tested assert_graph functions (wrapper, core, test)
+2026-05 | feat(routing): add adaptive bbox optimization with fallback
+2026-05 | feat: graph coverage validation + route bbox
+2026-05 | fix: refactor dijkstra core + fix GeoJSON export for QGIS display
+2026-05 | test: add curl test suite and make test-api target (17/17)
+2026-05 | test: setup pytest environment and first route test (missing params → 400)
+2026-05 | fix: parse ST_AsGeoJSON result as dict in get_coverage repository test: add integration tests for /api/route and /api/coverage

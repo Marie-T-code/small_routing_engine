@@ -29,8 +29,9 @@ Intent: run the whole pipeline in one command:
 make up
 ```
 
-(`make up` rebuilds the images first; `make fast` runs without rebuild.
-See the [Makefile](../Makefile) or run `make help`.)
+(`make up` rebuilds the images first and runs the full pipeline profile;
+`make fast` starts without rebuild; `make re` is a quick restart
+(`reset` + `fast`). See the [Makefile](../Makefile) or run `make help`.)
 
 The core responsibilities have been separated into different services
 (loader, builder) so the yml can orchestrate:
@@ -56,6 +57,26 @@ Those two services are up with `make up`, persistent, and always running.
    This service contains the Flask routes that interrogate the database
    and serve an itinerary to a (future) frontend.
 
+### persistent vs ephemeral volumes
+
+There are two kinds of volume in play, and the distinction matters:
+
+- **`pgdata`** is a Docker **named volume** holding the PostgreSQL data
+  directory. This is the only truly persistent state: it survives
+  `make down`, container rebuilds, and reboots. It is destroyed only by
+  an explicit `docker compose down -v`.
+- Everything else is a **bind mount** from the host: `./SQL` (the SQL
+  engine, mounted read-only into the build services), `./DATA/clean`
+  (the cleaned GeoPackages, mounted at `/import`), `./exports` (where
+  the devtools service writes), and `./app` (the live Flask code). These
+  are not "persistent" in the volume sense — they are just the host
+  directories made visible inside the containers, so editing a file on
+  the host is immediately reflected in the container.
+
+In short: the database content lives in `pgdata`; the code and data
+files live on the host and are mounted in. Losing a container never
+loses the database unless `-v` is passed.
+
 ### profiles
 
 The profiles help run the pipeline and solve an export problem
@@ -71,12 +92,28 @@ encountered as a new Linux user.
    Intent: make sure the data loading is done **after** the database
    is up and healthy.
 
+   It is built from its own image (`build: ./docker/loader`) rather than
+   reusing the stock Postgres image, because importing GeoPackages needs
+   GDAL/`ogr2ogr` — tools the plain `postgres:16` image does not ship.
+   It runs `import_all.sh` (see [pipeline.md](./pipeline.md) section 5.1).
+
    b. **builder** ("injection of SQL logic")
 
    Intent: make sure this service runs all necessary `MASTER.sql`
    files to set up steps 4–7 of the pipeline (see
    [pipeline.md](./pipeline.md)) **after** the loader has run and
    exited with no errors.
+
+   Unlike the loader, the builder reuses the plain `postgres:16` image:
+   all it needs is a `psql` client to run `run_master_all.sh`, which
+   connects to the database service by name (`psql -h db`) over the
+   shared `routing_net` network and executes `90_MASTER_ALL.sql`.
+
+   > Why the network matters here: `routing_net` is a user-defined Docker
+   > network, and Docker provides built-in DNS resolution on such networks
+   > (but not on the default bridge). This is what lets `psql -h db`
+   > resolve the name `db` to the database container's IP without
+   > hardcoding it — the service name *is* the hostname.
 
 2. **"devtools" profile**
 
@@ -90,22 +127,28 @@ encountered as a new Linux user.
    a Postgres UID/GID. It would not work if you wanted to force your
    own UID/GID on it to export files.
 
-   The Makefile (`make up`, `make fast`, `make reset`, etc.) covers the
-   day-to-day development cycle. Devtools commands are kept as direct
-   `docker compose` invocations below because they target one-off,
-   ad-hoc operations (export this table, run that SQL file) where
-   wrapping each variation in a Makefile target would add more noise
-   than clarity.
+   The Makefile (`make up`, `make fast`, `make reset`, `make re`,
+   `make psql`, `make run-sql`, etc.) covers the day-to-day development
+   cycle, including the most common devtools operation: running a SQL
+   file through the export service is wrapped as
+   `make run-sql FILE=path/to/file.sql`.
+
+   The raw `docker compose` invocations are kept below for reference —
+   they are what `make run-sql` expands to, and they remain the way to
+   run one-off, ad-hoc operations (a `\COPY` to CSV, a debug export)
+   that are too variable to deserve their own Makefile target.
 
    **Export command examples:**
 
    ```bash
-   docker compose --profile devtools run --rm builder_dev psql -f /path/to/file_to_export.sql
+   # what `make run-sql FILE=...` runs under the hood:
+   docker compose --profile devtools run --rm builder_dev psql -f /SQL/path/to/file.sql
    ```
 
    (`/DEBUG/` will contain files ready to export in geojson.)
 
    ```bash
+   # ad-hoc CSV export (no Makefile wrapper — run directly):
    docker compose --profile devtools run --rm builder_dev psql -c "\COPY table_name TO '/exports/results.csv' CSV"
    ```
 
@@ -148,19 +191,38 @@ It's worth noting that the issue isn't a "zombie network" floating
 around — it's the inverse: the network is gone, and the containers are
 still looking for it.
 
-#### Solution: `make reset`
+#### Solution: `make re` (or `make reset` + `make up`)
+
+The usual reflex after an orphan-network error is:
+
+```bash
+make re
+```
+
+`make re` runs `reset` then `fast` — it cleans up the stale network and
+restarts the containers **without** rebuilding images or re-running the
+pipeline. That is what you want most of the time: the database in
+`pgdata` is intact, so there is no need to re-import data or rebuild the
+graph, only to bring the containers back up cleanly.
+
+Use `make reset` + `make up` instead when you also need a rebuild — for
+example after changing a Dockerfile or `requirements.txt`, or when you
+want to reconstruct the graph from scratch:
 
 ```bash
 make reset
 make up
 ```
 
+(`make up` rebuilds images and re-runs the full pipeline profile, which
+is heavier; `make re` skips both.)
+
 `make reset` runs:
 
 ```makefile
 reset:
-	docker compose --profile pipeline down --remove-orphans
-	docker network rm routing_net 2>/dev/null || true
+   docker compose --profile pipeline down --remove-orphans
+   docker network rm routing_net 2>/dev/null || true
 ```
 
 Two things matter here:
@@ -178,9 +240,11 @@ Two things matter here:
   is already gone, so `make reset` is always safe to run.
 
 This is why `make down` and `make reset` are deliberately separate
-commands. `make down` is the standard teardown for a normal session
-and stays minimal; `make reset` is explicitly a recovery command, and
-its name reflects that intent.
+commands. `make down` is the minimal teardown by design; `make reset`
+is the recovery command, and it is safe to use as the default teardown,
+since its extra cleanup (`--remove-orphans`, network removal) is harmless
+when there is nothing to clean. In practice `reset` covers `down`, which
+is why it tends to be the one actually used.
 
 #### If `make reset` is not enough
 
