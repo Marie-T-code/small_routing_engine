@@ -62,8 +62,8 @@ check "[NOMINAL] long route → 200" "200" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
     "$BASE_URL/api/route?lat1=46.86025&lon1=3.16577&lat2=47.1189&lon2=3.26215&speed_kmh=15")"
 
-# [ERROR] same point as start and end — no path found → 404
-check "[ERROR] same point start=end → 404" "404" \
+# [ERROR] same point as start and end — rejected by fail-fast SamePointError → 400
+check "[ERROR] same point start=end → 400" "400" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
     "$BASE_URL/api/route?lat1=46.9868901&lon1=3.1697954&lat2=46.9868901&lon2=3.1697954&speed_kmh=15")"
 

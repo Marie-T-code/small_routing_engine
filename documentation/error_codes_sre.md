@@ -93,29 +93,29 @@ is consistent.
 
 | # | SQLSTATE | tag | message | raised by | mapped to (Python) | HTTP |
 |:-:|----------|-----|---------|-----------|--------------------|-----:|
-| 19 | P0001 | `ROUTING:NO_PATH` | no path found between selected points | `route_metrics` / `dijkstra_snap` | `RouteNotFoundError` (`/api/route`) | 404 |
+| 19 | P0001 | `ROUTING:NO_PATH` | no path found between selected points | `dijkstra_snap` / `route_metrics` | `RouteNotFoundError` (`/api/route`) | 404 |
 | 20 | P0001 | `ROUTING:NO_PATH` | no path found between selected points | `route_metrics` (via POI search) | `POIRouteNotFoundError` (`/api/pois_search`) | 404 |
-| 21 | P0001 | `COVERAGE:OUT_OF_BOUNDS` | Point (%, %) is outside graph coverage area. | `is_within_coverage` | `PointOutOfCoverageError` (`/api/route`) | 422 |
+| 21 | P0001 | `COVERAGE:OUT_OF_BOUNDS` | Point (%, %) is outside graph coverage area. | `is_within_coverage` | `PointOutOfCoverageError` (`/api/route` and `/api/pois_search`) | 422 |
 
-> **Note on rows 19–20.** There is a single SQL tag (`ROUTING:NO_PATH`),
-> raised in one place, but two consumers: the route service maps it to
-> `RouteNotFoundError`, the POI service to `POIRouteNotFoundError`. Both
-> return 404. This tag also covers the degenerate `start = end` case (a
-> zero-edge path reads as "no path"); see the backlog.
+> **Note on `ROUTING:NO_PATH` (rows 19–20).** Raised in two places
+> (`dijkstra_snap` after its full-graph fallback fails, and `route_metrics`
+> on a zero-edge result), mapped by two consumers (`RouteNotFoundError`
+> for routes, `POIRouteNotFoundError` for POI search), both 404. On the
+> current single-component graph this is not expected to fire and is not
+> covered by a test — it is kept as a defensive guard.
 
-> **Note on coverage and POI search.** `is_within_coverage` (row 21) is
-> called by the **route** repository, not the POI repository. An
-> out-of-area POI search therefore does not raise `COVERAGE:OUT_OF_BOUNDS`
-> — it runs the route internally, finds no path, and surfaces as
-> `ROUTING:NO_PATH` → 404 instead of a coverage 422. Aligning the POI
-> path onto the same coverage guard is a known backlog item.
+> **Note on coverage (row 21).** `is_within_coverage` is called by **both**
+> repositories as a fail-fast pre-engine check; an out-of-area request
+> (route or POI) surfaces as 422 before any routing runs. The shared
+> `PointOutOfCoverageError` lives in `utils/exceptions.py`.
 
 ---
 
 ## 4. Application-level errors (Python validation)
 
 Raised in the Flask layer **before** any SQL runs — input validation in
-the blueprint, DTO, or service. They carry no SQL tag and no `P0001`;
+the DTO `validate()`, or inline in the blueprint for checks that can run
+before the DB connection opens. They carry no SQL tag and no `P0001`;
 they are pure Python exceptions (or inline checks) mapped directly to a
 status code.
 
@@ -124,12 +124,21 @@ status code.
 | 22 | inline check | missing required query parameter(s) | 400 | both |
 | 23 | `InvalidCoordinatesError` | malformed / out-of-range coordinates | 400 | `/api/route` |
 | 24 | `InvalidSpeedError` | non-positive or invalid speed | 400 | `/api/route` |
-| 25 | `ValueError` (`POICategory(...)`) | category not in `bike, culture, services, catering` | 400 | `/api/pois_search` |
+| 25 | `InvalidCategoryError` | category not in `bike, culture, services, catering` | 400 | `/api/pois_search` |
 | 26 | `InvalidRadiusError` | invalid search radius | 400 | `/api/pois_search` |
+| 27 | `SamePointError` | start and end points are identical | 400 | both |
 
-> The category enum is validated by constructing `POICategory(category)`,
-> which raises a plain `ValueError` if the string is not a member — the
-> blueprint catches it and returns the list of accepted values.
+> **Category validation (row 25).** The blueprint constructs
+> `POICategory(category)`, which raises a plain `ValueError` if the string
+> is not a member; the blueprint catches it and re-raises
+> `InvalidCategoryError` with the list of accepted values. The domain
+> exception, not the raw `ValueError`, is what the handler maps to 400.
+
+> **Same-point check (row 27).** Raised by each service's DTO `validate()`
+> when start and end coordinates are strictly equal — a fail-fast reject
+> before the engine runs. The shared `SamePointError` lives in
+> `utils/exceptions.py`. It does not detect *near-identical* points that
+> snap to the same graph node; that case is a separate backlog item.
 
 ---
 
@@ -138,9 +147,9 @@ status code.
 | Status | Meaning in this API |
 |-------:|---------------------|
 | 200 | Success |
-| 400 | Malformed request (missing params, bad coordinates, speed, radius, category) |
-| 404 | No route found between the two points (`ROUTING:NO_PATH`) |
-| 422 | A point is outside the graph coverage area (`COVERAGE:OUT_OF_BOUNDS`) |
+| 400 | Malformed or rejected request before the engine runs: missing params, bad coordinates, invalid speed, invalid radius, unknown category, or identical start/end points (`SamePointError`) |
+| 404 | No route found between two distinct in-coverage points (`ROUTING:NO_PATH`) — defensive, not expected to fire on the current single-component graph |
+| 422 | A point is outside the graph coverage area (`COVERAGE:OUT_OF_BOUNDS`), on both `/api/route` and `/api/pois_search` |
 | 500 | Unexpected error (uncaught exception; also where a build-time guardrail would land if it ever ran at request time — which it does not) |
 
 ---

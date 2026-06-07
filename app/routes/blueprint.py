@@ -9,8 +9,9 @@ from config import get_db_conn
 from routes.repository import RouteRepository
 from routes.service import RouteService
 from routes.dto import RouteSearchRequest
-from routes.exceptions import RouteNotFoundError, PointOutOfCoverageError, InvalidCoordinatesError, InvalidSpeedError
 from utils.db_errors import parse_pg_error_message
+from routes.exceptions import RouteNotFoundError, InvalidCoordinatesError, InvalidSpeedError
+from utils.exceptions import PointOutOfCoverageError, SamePointError
 
 
 blueprint_route = Blueprint("blueprint_route", __name__)
@@ -45,6 +46,8 @@ def get_route():
     except InvalidCoordinatesError as e:
         return jsonify({"status": "error", "message": str(e)}), 400
     except InvalidSpeedError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except SamePointError as e:
         return jsonify({"status": "error", "message": str(e)}), 400
     except PointOutOfCoverageError as e:
         message = parse_pg_error_message(str(e))

@@ -4,7 +4,8 @@
 
 import psycopg2
 import json
-from routes.exceptions import RouteSearchError, RouteNotFoundError, PointOutOfCoverageError
+from routes.exceptions import RouteSearchError, RouteNotFoundError
+from utils.exceptions import PointOutOfCoverageError
 from utils.db_errors import parse_pg_error_code
 
 class RouteRepository:
@@ -38,7 +39,7 @@ class RouteRepository:
                     """, 
                     (lat_end, lon_end))
         except psycopg2.Error as e:
-            code = parse_pg_error_code(e)
+            code = parse_pg_error_code(e.pgerror)
             if code == 'COVERAGE:OUT_OF_BOUNDS':
                 raise PointOutOfCoverageError(e.pgerror) from e
             raise RouteSearchError(e.pgerror) from e
@@ -52,7 +53,7 @@ class RouteRepository:
                 result = cursor.fetchone()[0]
                 return result
         except psycopg2.Error as e:
-            code = parse_pg_error_code(e)
+            code = parse_pg_error_code(e.pgerror)
             if code == 'ROUTING:NO_PATH':
                 raise RouteNotFoundError(e.pgerror) from e
             raise RouteSearchError(e.pgerror) from e

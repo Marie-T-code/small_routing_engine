@@ -5,6 +5,7 @@
 
 from dataclasses import dataclass
 from routes.exceptions import InvalidCoordinatesError, InvalidSpeedError
+from utils.exceptions import SamePointError  
 
 @dataclass
 class RouteSearchRequest:
@@ -25,6 +26,9 @@ class RouteSearchRequest:
         missing = [name for name, value in coords.items() if value is None]
         if missing:
             raise InvalidCoordinatesError(f"Missing Coordinates {missing}")
+        # reject identical start/end before hitting the engine
+        if (self.lat_start, self.lon_start) == (self.lat_end, self.lon_end):
+            raise SamePointError("Start and end points must differ")
         if self.speed_kmh is None:
             raise InvalidSpeedError("No speed detected, please choose a speed per hour")
         if self.speed_kmh <= 10 or self.speed_kmh > 25:

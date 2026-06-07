@@ -8,6 +8,7 @@ __pycache__/
 *.pyc
 venv/
 .ipynb_checkpoints/
+.env.test
 
 # --- Éditeurs ---
 .vscode/

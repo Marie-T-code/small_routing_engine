@@ -6,9 +6,8 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../app")))
 
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
-os.environ["PGHOST"] = "localhost"
-os.environ["PGPORT"] = "5433"
+load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env.test"), override=True)
+
 
 from app import create_app
 
