@@ -26,8 +26,16 @@ venv/
 *.qgz
 
 
-# --- Données SIG lourdes ---
+# --- Heavy GIS data ---
 DATA
+DATA/raw
+DATA/work
+
+# the clean.gpkg suite designed used for the prototype and testing
+!DATA/
+!DATA/clean/
+!DATA/clean/*.gpkg
 
 # waiting for architectural decision
 dev_tools
+
