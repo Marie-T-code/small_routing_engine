@@ -10,9 +10,11 @@ from routes.repository import RouteRepository
 from routes.service import RouteService
 from routes.dto import RouteSearchRequest
 from utils.db_errors import parse_pg_error_message
+import logging
 from routes.exceptions import RouteNotFoundError, InvalidCoordinatesError, InvalidSpeedError
 from utils.exceptions import PointOutOfCoverageError, SamePointError
 
+logger = logging.getLogger(__name__)
 
 blueprint_route = Blueprint("blueprint_route", __name__)
 
@@ -55,7 +57,8 @@ def get_route():
     except RouteNotFoundError as e:
         message = parse_pg_error_message(str(e))
         return jsonify({"status": "error", "message": message}), 404
-    except Exception:
+    except Exception as e:
+        logger.exception("Unhandled error on %s", request.path)
         return jsonify({"status": "error", "message": "An unexpected error occurred"}), 500
     finally:
         if conn:
@@ -72,7 +75,8 @@ def get_coverage():
         get_coverage = service.get_coverage()
 
         return jsonify(get_coverage), 200
-    except Exception:
+    except Exception as e:
+        logger.exception("Unhandled error on %s", request.path)
         return jsonify({"status": "error", "message": "An unexpected error occurred"}), 500
     finally:
         if conn:
