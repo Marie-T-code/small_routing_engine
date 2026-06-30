@@ -8,6 +8,9 @@
 -- Notes:
 -- - Uses raw intermediate geometry (geom_graph_raw) to clearly separate computation from output contracts.
 -- - Avoid printing large WKT in psql; prefer ST_NPoints / ST_Envelope for debug.
+-- - Strict dedup (ST_RemoveRepeatedPoints) removes coincident vertices at edge
+--   junctions caused by ST_EndPoint on edges not reoriented to traversal direction.
+--   Edges are 2-point segments, so strict dedup suffices (no intermediate points to misorder).
 
 DROP FUNCTION IF EXISTS public.route_metrics(
     DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION
@@ -55,7 +58,7 @@ BEGIN
         FROM route
     ),
     line AS (
-        SELECT ST_Makeline(arr)::geometry(Linestring) AS route_geom_graph_raw
+        SELECT ST_RemoveRepeatedPoints(ST_Makeline(arr))::geometry(Linestring) AS route_geom_graph_raw
         FROM pts
     )
     SELECT stats.edges_count, stats.total_m, line.route_geom_graph_raw
