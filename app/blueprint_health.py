@@ -13,6 +13,6 @@ def test_db():
     try:
         conn = get_db_conn()
         conn.close()
-        return jsonify({"status": "success", "message": "Database connection is a success !"})
+        return jsonify({"status": "success", "message": "Database connection successful"})
     except Exception as e:
         return jsonify({"status": "error", "message": e.pgerror or str(e)}), 500
