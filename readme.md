@@ -1,3 +1,7 @@
+![tests](https://github.com/Marie-T-code/small_routing_engine/actions/workflows/tests.yml/badge.svg)
+
+Note (July 2026): Following a heatwave-induced delay, several fixes and improvements (testing, frontend setup, ...) were made, committed, and documented in [`to_do.md`](./documentation/to_do.md) — but are not yet reflected in this README. A full README update is planned once the raster service is complete (~mid-July).
+
 # Small Routing Engine
 
 A geospatial backend project: a semi-automated ETL pipeline from
