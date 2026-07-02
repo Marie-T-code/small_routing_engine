@@ -1,13 +1,16 @@
-# Shell scripts must use LF (Unix)
-*.sh text eol=lf
+# Default: normalize all text files to LF
+* text=auto eol=lf
 
-# Docker-related files
+# Binary files: never touch line endings
+*.gpkg binary
+*.pdf binary
+*.ods binary
+
+# Explicit LF rules for critical text types (redundant with the global rule
+# above, kept for clarity/intent on sensitive files)
+*.sh text eol=lf
 Dockerfile text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
-
-# SQL files
 *.sql text eol=lf
-
-# .env file
 .env text eol=lf
