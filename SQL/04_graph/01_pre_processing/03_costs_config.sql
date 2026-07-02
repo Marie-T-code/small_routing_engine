@@ -24,7 +24,7 @@ SET cost =
   ELSE length_m
   END,
     reverse_cost = 
-  CASE WHEN oneway = 'yes' THEN -1 
+  CASE WHEN oneway IN ('yes','true','1') = 'yes' THEN -1 
   ELSE length_m
   END
 WHERE length_m IS NOT NULL;
