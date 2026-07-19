@@ -1,0 +1,3 @@
+type,source,producer,territory,resolution,vintage,licence,url,access_date
+raster,RGE ALTI,IGN,Nièvre (58),5m,2023-08-01,Licence Ouverte Etalab 2.0,https://cartes.gouv.fr/explorer-les-cartes/,2026-07-07
+raster,RGE ALTI,IGN,Cher (18),1m,2023-01-03,Licence Ouverte Etalab 2.0,https://cartes.gouv.fr/explorer-les-cartes/,2026-07-07
