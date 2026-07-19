@@ -31,10 +31,13 @@ DATA
 DATA/raw
 DATA/work
 
+
 # the clean.gpkg suite designed used for the prototype and testing
 !DATA/
 !DATA/clean/
 !DATA/clean/*.gpkg
+DATA/clean/*aux.xml
+
 
 # waiting for architectural decision
 dev_tools
