@@ -11,6 +11,7 @@ echo "======================================================"
 
 bash /SQL/03_injection/import_routes.sh
 bash /SQL/03_injection/import_pois.sh
+bash /SQL/03_injection/import_dem.sh
 
 echo "======================================================"
 echo "✅ All imports completed successfully."

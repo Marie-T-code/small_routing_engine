@@ -1,0 +1,177 @@
+time="2026-08-11T12:23:44+02:00" level=warning msg="/home/tey/dev/projets/small_routing_engine/docker-compose.yaml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container nevers_postgis Running 
+ Container nevers_postgis Waiting 
+ Container nevers_postgis Healthy 
+ Container small_routing_engine-loader-run-d6064c51541e Creating 
+ Container small_routing_engine-loader-run-d6064c51541e Created 
+######################################################
+# DEM tile-size benchmark
+# source : /import/dem_nevers.tif
+# table  : public.dem_test (throwaway)
+# sizes  : 32 64 100 256
+######################################################
+
+======================================================
+=== tile 32x32 ===
+======================================================
+--- import time (raster2pgsql + psql, incl. -I index) ---
+Processing 1/1: /import/dem_nevers.tif
+NOTICE:  Adding SRID constraint
+NOTICE:  Adding scale-X constraint
+NOTICE:  Adding scale-Y constraint
+NOTICE:  Adding blocksize-X constraint
+NOTICE:  Adding blocksize-Y constraint
+NOTICE:  Adding alignment constraint
+NOTICE:  Adding number of bands constraint
+NOTICE:  Adding pixel type constraint
+NOTICE:  Adding nodata value constraint
+NOTICE:  Adding out-of-database constraint
+NOTICE:  Adding maximum extent constraint
+ addrasterconstraints 
+----------------------
+ t
+(1 row)
+
+
+real	0m10.548s
+user	0m9.649s
+sys	0m1.212s
+--- tiles + on-disk footprint ---
+ nb_tiles | table_size 
+----------+------------
+    38121 | 14 MB
+(1 row)
+
+--- point-lookup time (ST_Value at every routes_v1 start point) ---
+Timing is on.
+ points_read 
+-------------
+       86867
+(1 row)
+
+Time: 2446.083 ms (00:02.446)
+
+======================================================
+=== tile 64x64 ===
+======================================================
+--- import time (raster2pgsql + psql, incl. -I index) ---
+Processing 1/1: /import/dem_nevers.tif
+NOTICE:  Adding SRID constraint
+NOTICE:  Adding scale-X constraint
+NOTICE:  Adding scale-Y constraint
+NOTICE:  Adding blocksize-X constraint
+NOTICE:  Adding blocksize-Y constraint
+NOTICE:  Adding alignment constraint
+NOTICE:  Adding number of bands constraint
+NOTICE:  Adding pixel type constraint
+NOTICE:  Adding nodata value constraint
+NOTICE:  Adding out-of-database constraint
+NOTICE:  Adding maximum extent constraint
+ addrasterconstraints 
+----------------------
+ t
+(1 row)
+
+
+real	0m5.060s
+user	0m3.425s
+sys	0m0.450s
+--- tiles + on-disk footprint ---
+ nb_tiles | table_size 
+----------+------------
+     9639 | 9536 kB
+(1 row)
+
+--- point-lookup time (ST_Value at every routes_v1 start point) ---
+Timing is on.
+ points_read 
+-------------
+       86867
+(1 row)
+
+Time: 2018.208 ms (00:02.018)
+
+======================================================
+=== tile 100x100 ===
+======================================================
+--- import time (raster2pgsql + psql, incl. -I index) ---
+Processing 1/1: /import/dem_nevers.tif
+NOTICE:  Adding SRID constraint
+NOTICE:  Adding scale-X constraint
+NOTICE:  Adding scale-Y constraint
+NOTICE:  Adding blocksize-X constraint
+NOTICE:  Adding blocksize-Y constraint
+NOTICE:  Adding alignment constraint
+NOTICE:  Adding number of bands constraint
+NOTICE:  Adding pixel type constraint
+NOTICE:  Adding nodata value constraint
+NOTICE:  Adding out-of-database constraint
+NOTICE:  Adding maximum extent constraint
+ addrasterconstraints 
+----------------------
+ t
+(1 row)
+
+
+real	0m4.336s
+user	0m2.533s
+sys	0m0.292s
+--- tiles + on-disk footprint ---
+ nb_tiles | table_size 
+----------+------------
+     3994 | 9056 kB
+(1 row)
+
+--- point-lookup time (ST_Value at every routes_v1 start point) ---
+Timing is on.
+ points_read 
+-------------
+       86867
+(1 row)
+
+Time: 2409.037 ms (00:02.409)
+
+======================================================
+=== tile 256x256 ===
+======================================================
+--- import time (raster2pgsql + psql, incl. -I index) ---
+Processing 1/1: /import/dem_nevers.tif
+NOTICE:  Adding SRID constraint
+NOTICE:  Adding scale-X constraint
+NOTICE:  Adding scale-Y constraint
+NOTICE:  Adding blocksize-X constraint
+NOTICE:  Adding blocksize-Y constraint
+NOTICE:  Adding alignment constraint
+NOTICE:  Adding number of bands constraint
+NOTICE:  Adding pixel type constraint
+NOTICE:  Adding nodata value constraint
+NOTICE:  Adding out-of-database constraint
+NOTICE:  Adding maximum extent constraint
+ addrasterconstraints 
+----------------------
+ t
+(1 row)
+
+
+real	0m2.627s
+user	0m1.082s
+sys	0m0.339s
+--- tiles + on-disk footprint ---
+ nb_tiles | table_size 
+----------+------------
+      642 | 8112 kB
+(1 row)
+
+--- point-lookup time (ST_Value at every routes_v1 start point) ---
+Timing is on.
+ points_read 
+-------------
+       86867
+(1 row)
+
+Time: 5096.296 ms (00:05.096)
+
+--- cleanup: dropping throwaway table ---
+DROP TABLE
+
+✅ benchmark complete.
