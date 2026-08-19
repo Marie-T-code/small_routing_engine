@@ -42,3 +42,5 @@ DATA/clean/*aux.xml
 # waiting for architectural decision
 dev_tools
 
+# python oop services saves
+*_bundle.txt

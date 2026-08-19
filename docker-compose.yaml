@@ -78,6 +78,7 @@ services:
       - ./DATA/clean:/import
       - ./SQL:/SQL:ro
       - ./docker/loader:/loader:ro
+      - ./performance:/performance:ro   
     command: ["bash", "/loader/import_all.sh"]
     networks: 
       - routing_net
