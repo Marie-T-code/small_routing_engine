@@ -12,8 +12,11 @@
 ### Frontend
 - [x] Minimal Leaflet frontend (demonstrable dev state : route + pois along said route) **DONE**
 
-### Conditional — IF tests + CI + frontend done before the 21st UPDATE : moved to first week of July. Cause : long heatwave cause project delay.
+### Raster addition (multisource cost configuration)
 - [ ] Minimal raster service
+  - [x] import and clean file
+  - [ ] ingest raster data into the pipeline
+  - [ ] update cost file 
 
 ### Known bugs 
 - [x] [oneway robustness] reverse_cost CASE hardened to IN ('yes','true','1').Nevers data only contains yes/no/-1/empty (verified via GROUP BY oneway),so no behavior change on this dataset. true/1 are attested OSM synonyms of es (historic, now deprecated but present in older/other extracts) — hardened or portability. 'reverse' is NOT a oneway value (that's 'reversible', out of scope), so cost stays on '-1'. TODO: synthetic test with a oneway='true' edge to assert it becomes non-traversable against direction. **DONE**
@@ -49,6 +52,35 @@ This error can't show up in the pipeline as is (reconstruction of the table and 
 - [x] identified ^M presence at the end of some lines therefore => need to strenghten the gitattributes with `* text=auto eol=lf`
 - [ ] starting to separate commits by theme. To_DO and the suppression of the_road_so_far.txt to commit in a "documentation" commit at the ~~end of the month~~ the project (around July 15th)
 
+### backlog short term
+- [x] remember to keep sources from raster dataset in a light csv
+- [ ] to do before closure : keep track of ALL the sources in DATA/SOURCES.csv (edges and points too)
+- [x] move first step of raster dataset cleaning in "work" file (DATA/work)
+- [x] harmonize names of vector layers
+- [ ] harmonize makefile with docker naming conventions
+- [ ] harmonize documentation with actual edges numbers : about 86k edges, not 76k
+- [ ] harmonize documentation "kilometers" vs "kilometres"
+
+### backlog python services (non urgent, works for now)
+
+- [ ] **Rename `get_route` → `search_pois` in `pois/blueprint.py`**
+      Copy-paste from routes. Not a bug (endpoints stay distinct via blueprint
+      name), but misleading and a potential trap for a future url_for().
+      Readability.
+
+- [ ] **None-guard asymmetry between the two DTOs** (design call to make)
+      `routes/dto.py` guards `speed_kmh is None`; `pois/dto.py` does not guard
+      `radius_m is None`. If a caller bypasses the blueprint, `None <= 10`
+      raises TypeError instead of InvalidRadiusError. The blueprint already
+      guarantees non-None → possibly YAGNI. Decide: consistency vs KISS.
+
+- [ ] **Double ST_Transform per row in `pois/repository.py`** (perf, minor)
+      ST_X(ST_Transform(geom,4326)) + ST_Y(ST_Transform(geom,4326)) transforms
+      the same geometry twice. ST_Transform is IMMUTABLE so the planner MAY
+      factor it out, not guaranteed. Negligible on ~1000 POIs. Possible fix:
+      CROSS JOIN LATERAL (SELECT ST_Transform(p.geom,4326) AS g).
+      Probably YAGNI.
+
 
 ### discovered and fixed this month
 
@@ -68,7 +100,19 @@ This error can't show up in the pipeline as is (reconstruction of the table and 
 ## WHEN TIME (not urgent)
 
 ### API cleanups
-- [x] Frenglish: "test_db is a success!" -> proper English message => changed 
+- [ ] DROP IF EXISTS -> CREATE OR REPLACE once signatures are stable
+- [ ] Renumber SQL files (03_injection -> docker loader, renumber 01_config, 02_graph...)
+- [ ] QOL: vertices view `the_geom` -> `geom`
+- [ ] `graph_coverage_bbox` plpgsql function (for consistency)
+- [ ] pgRouting 3.8 migration: `pgr_createTopology` + `pgr_analyzeGraph` deprecated (work with warning)
+- [ ] Really not urgent: can `pgr_createTopology()` generate different source/target IDs on a rebuild? (can a node ID in the vertices table differ from the edge's one?)
+
+## ROADMAP (validated)
+1. ~~**MAY**: BBoxes + architecture decision~~ (done)
+2. ~~**MAY**: Curl test suite~~ (done)
+3. **JUNE**: finish the dev prototype -> pytest + testcontainers + GitHub Actions + frontend, then CLOSE (+ raster service if done before the 21st)
+
+4. **JULY 1st-31st** raster service to implement + doc and then close (all other points validated)x] Frenglish: "test_db is a success!" -> proper English message => changed 
 - [ ] POI sub-categories
 - [ ] Audit all debug functions + add a "debug" category in `engine_functions.md`
 
@@ -85,7 +129,7 @@ This error can't show up in the pipeline as is (reconstruction of the table and 
 2. ~~**MAY**: Curl test suite~~ (done)
 3. **JUNE**: finish the dev prototype -> pytest + testcontainers + GitHub Actions + frontend, then CLOSE (+ raster service if done before the 21st)
 
-4. **JULY 1st-15th** due to heatwave delay, raster service to implement + doc and then close (all other points validated)
+4. **JULY 1st-31st** raster service to implement + doc and then close (all other points validated)
 5. **NEXT**: fork into a production project
 6.  **NEXT**: typing -> Pydantic v2 -> FastAPI migration
 7. **NEXT**: performance -> async -> connection pooling

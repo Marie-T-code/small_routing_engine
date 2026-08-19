@@ -1,6 +1,6 @@
 ![tests](https://github.com/Marie-T-code/small_routing_engine/actions/workflows/tests.yml/badge.svg)
 
-Note (July 2026): Following a heatwave-induced delay, several fixes and improvements (testing, frontend setup, ...) were made, committed, and documented in [`to_do.md`](./documentation/to_do.md) — but are not yet reflected in this README. A full README update is planned once the raster service is complete (~mid-July).
+Note (August 2026): Several fixes and improvements (testing, frontend setup, raster file cleaning, tiling and importation ...) were made, committed, and documented in [`to_do.md`](./documentation/to_do.md) — but are not yet reflected in this README. 
 
 # Small Routing Engine
 
@@ -8,6 +8,7 @@ A geospatial backend project: a semi-automated ETL pipeline from
 OpenStreetMap to PostGIS (see [note on automation scope](#what-this-project-demonstrates)),
 a layered Python API serving GeoJSON, with a bicycle routing engine over
 Nevers (France) as the demonstration use case.
+WIP :  slope costs integration to the route calculation algorithm.
 
 Status: functional prototype — see [Roadmap](#roadmap)
 
@@ -115,7 +116,7 @@ carries `length_m` in its allowed direction and `-1` in the other.
 `pgr_dijkstra` is called with `directed := true`, so directionality lives
 in the graph data rather than in the algorithm.
 
-On a 76k-edge single-component graph, this design keeps queries sub-second
+On a 86 867-edge single-component graph, this design keeps queries sub-second
 across Nevers and a ~15 km radius — from ~68 ms on a short urban route to
 ~258 ms on a ~33 km diametral query (development laptop, warm cache, mean
 of 4–5 runs).
@@ -293,7 +294,7 @@ route.
 | 500  | (unexpected)             | Internal error                                              |
 
 Build-time guardrail errors (graph preconditions and state, all returning
-500) are not user-facing and are documented separately in
+500 ) are not user-facing and are documented separately in
 [`error_codes_sre.md`](./documentation/error_codes_sre.md).
 
 ---
@@ -459,23 +460,14 @@ git clone https://github.com/Marie-T-code/small_routing_engine
 cd small_routing_engine
 ```
 
-### 2. Get the data and environment file
+### 2. environment file changes and data storage
 
-The cleaned datasets and `.env` template are not stored in the repository.
-Download them here:
+The cleaned datasets were not originally stored in the repository.
+However, the Github actions tests implied reconsidering data storage. 
+After file size consideration, both vector and raster file were commited.
 
-[**Download `.env` and cleaned `.gpkg` files**](https://mega.nz/folder/u1RVmZoJ#nld-LyYyCG1GYW-tYga81w)
+`.env.example` ships with working development defaults — copy it to `.env` and it runs as-is; change the values if you want. 
 
-Place them as follows:
-
-```text
-small_routing_engine/
-├── .env                              # ← project root
-└── DATA/
-    └── clean/
-        ├── nevers_clean.gpkg          # ← road network
-        └── nevers_clean_points.gpkg   # ← points of interest
-```
 
 ### 3. Build and run
 
@@ -535,6 +527,7 @@ features come later still.
 - SQL-layer testing: testcontainers for the PostGIS/pgRouting layer
 - CI/CD: GitHub Actions running the suite in a dedicated Docker service
 - Minimal Leaflet frontend
+- raster slope cost integration
 
 ### Beyond: continued in a forked project
 
@@ -548,7 +541,6 @@ and security.
 Engine-level features to explore once there is a live service to build on:
 
 - Multi-criteria costs (surface, lighting, cycleways)
-- Raster-based costs (altitude, slope from elevation models)
 - Smart contextual data (e.g. street lighting active by time and city,
   when local data is available)
 - User feedback loop on routes (CRUD for reporting and reviewing
@@ -598,8 +590,8 @@ This is a functional prototype. Current scope:
   connection. Acceptable for prototype load; pooling is part of the
   production hardening done in the
   [forked project](#beyond-continued-in-a-forked-project).
-- **No frontend yet.** The API serves GeoJSON ready for any client; a
-  minimal Leaflet frontend is in progress.
+- **Basic frontend.** The API serves GeoJSON ready for any client; a
+  minimal Leaflet frontend shows a route.
 - **Cycling speed range.** The API accepts `speed_kmh` in `(10, 25]` to
   reflect typical urban cycling. Speed does not affect routing itself —
   edge costs are distances (`length_m`), so the path is identical at any
