@@ -5,6 +5,11 @@ import pytest
 from testcontainers.compose import DockerCompose
 from dotenv import dotenv_values
 
+TEST_ENV = {
+    "COMPOSE_PROJECT_NAME": "sre_test",
+    "COMPOSE_PROFILES": "pipeline",
+    "PG_PORT": "55432",
+}
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 env = dotenv_values(PROJECT_ROOT / ".env")
 sys.path.insert(0, str(PROJECT_ROOT / "app"))
@@ -40,34 +45,43 @@ def _wait_until_graph_ready(
 
 @pytest.fixture(scope="session")
 def running_stack():
-    """
-    Owns the docker-compose lifecycle: brings the db/loader/builder chain up
+    """Owns the docker-compose lifecycle: brings the db/loader/builder chain up
     once per session, waits until the graph is actually built, then yields the
     live DockerCompose object so callers can exec commands inside its containers.
-    Single source of truth for the running stack.
-    """
-    os.environ["COMPOSE_PROFILES"] = "pipeline"
-
-    compose = DockerCompose(
-        str(PROJECT_ROOT),
-        compose_file_name="docker-compose.yaml",
-        build=True,
-        services=["db", "loader", "builder"],
-    )
-
-    with compose:
-        host = compose.get_service_host("db", 5432)
-        if host == "0.0.0.0":
-            host = "127.0.0.1"
-        port = int(compose.get_service_port("db", 5432))
-
-        _wait_until_graph_ready(
-            host, port,
-            dbname=env["PGDATABASE"], user=env["PGUSER"], password=env["PGPASSWORD"],
+    Single source of truth for the running stack."""
+    saved = {k: os.environ.get(k) for k in TEST_ENV}
+    os.environ.update(TEST_ENV)
+    try:
+        compose = DockerCompose(
+            str(PROJECT_ROOT),
+            compose_file_name="docker-compose.yaml",
+            build=True,
+            services=["db", "loader", "builder"],
         )
 
-        yield compose
-    # leaving the with block -> docker compose down
+        # Garde-fou : vérifié AVANT le with, donc aucun down possible sur le mauvais projet
+        project = compose.get_config()["name"]
+        if project != TEST_ENV["COMPOSE_PROJECT_NAME"]:
+            raise RuntimeError(f"Projet Compose inattendu : {project!r}, arrêt avant tout up/down")
+
+        with compose:
+            host = compose.get_service_host("db", 5432)
+            if host == "0.0.0.0":
+                host = "127.0.0.1"
+            port = int(compose.get_service_port("db", 5432))
+
+            _wait_until_graph_ready(
+                host, port,
+                dbname=env["PGDATABASE"], user=env["PGUSER"], password=env["PGPASSWORD"],
+            )
+            yield compose
+        # sortie du with -> down --volumes, l'env de test est encore en place
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
 
 
 @pytest.fixture(scope="session")

@@ -1,9 +1,9 @@
+name : sre_dev
 version: '3.9' # if you are in compose v2 you can comment/delete this entire line
 
 services:
   db:
     build: ./DB
-    container_name: nevers_postgis
     env_file: ./.env
     ports:
       - "${PG_PORT}:5432"
@@ -42,7 +42,6 @@ services:
 
   api:
     build: ./app
-    container_name: nevers_api
     env_file: ./.env
     ports:
       - "${FLASK_PORT}:5000"
@@ -68,7 +67,6 @@ services:
   loader:
     profiles: ["pipeline"]
     build: ./docker/loader
-    container_name: nevers_loader
     env_file: ./.env
     depends_on:
       db:
@@ -91,7 +89,6 @@ services:
   builder:
     profiles: ["pipeline"]
     image: postgres:16  
-    container_name: nevers_builder
     env_file: ./.env
     depends_on:
       db:
@@ -110,7 +107,6 @@ services:
 networks:
   routing_net:
     driver: bridge
-    name: routing_net
 
 volumes:
   pgdata:
