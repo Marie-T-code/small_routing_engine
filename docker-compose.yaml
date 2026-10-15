@@ -26,7 +26,7 @@ services:
 # ----------------------------
 
   builder_dev:
-    image: postgres:16
+    build: ./docker/psql_client
     profiles: ["devtools"]
     env_file: ./.env
     depends_on:
@@ -88,7 +88,7 @@ services:
   # ----------------------------
   builder:
     profiles: ["pipeline"]
-    image: postgres:16  
+    build: ./docker/psql_client
     env_file: ./.env
     depends_on:
       db:

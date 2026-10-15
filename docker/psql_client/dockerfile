@@ -1,0 +1,5 @@
+# docker/psql_client/Dockerfile
+# Client-only image for builder / builder_dev: psql + bash, no server.
+# PostGIS/pgRouting live in the db service; psql only sends SQL text.
+FROM alpine:3.22
+RUN apk add --no-cache postgresql16-client bash
