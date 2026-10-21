@@ -42,7 +42,7 @@ if __name__ == "__main__":
     try:
         check_graph_ready()
     except psycopg2.Error:
-        logger.exception("Graph not ready, refusing to start. Run the pipeline (make up).")
+        logger.exception("Graph not ready, refusing to start. Run the pipeline (make pipeline).")
         sys.exit(1)
     app = create_app()
     app.run(host="0.0.0.0", port=Config.FLASK_PORT, debug=Config.FLASK_DEBUG)
