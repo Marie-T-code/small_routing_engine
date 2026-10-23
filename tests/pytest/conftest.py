@@ -1,53 +1,53 @@
 import os
 import sys
+import time
 from pathlib import Path
+
 import pytest
-from testcontainers.compose import DockerCompose
 from dotenv import dotenv_values
+from testcontainers.compose import DockerCompose
+
 
 TEST_ENV = {
     "COMPOSE_PROJECT_NAME": "sre_test",
     "COMPOSE_PROFILES": "pipeline",
-    "PG_PORT": "55432",
+    "PG_PORT": "0", # 0 = OS picks a free host port (no collisions); read back via get_service_port()
 }
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 env = dotenv_values(PROJECT_ROOT / ".env")
 sys.path.insert(0, str(PROJECT_ROOT / "app"))
 
 
-def _wait_until_graph_ready(
-    host, port, dbname, user, password, timeout=180
-    ):
+def _wait_until_builder_done(compose, timeout=180):
+    """Block until the builder container exits, then check its exit code.
+
+    Exit code 0 means the whole SQL pipeline ran (set -e + ON_ERROR_STOP=1),
+    so the graph is ready. Any other exit code, or the timeout, aborts the
+    whole session (pytest.exit) with the last builder log lines: no test can
+    run without a built graph.
+    Replaces the former graph_coverage poll: that row is written before the
+    builder finishes, so it was not a reliable readiness signal.
     """
-    Poll the DB until the builder has finished: graph_coverage must hold a row.
-    docker compose --wait does NOT guarantee the builder task has completed,
-    so we verify the real end-state.
-    """
-    import time
-    import psycopg2
     deadline = time.time() + timeout
-    last_err = None
+    builder = None
     while time.time() < deadline:
-        try:
-            conn = psycopg2.connect(host=host, port=port,
-            dbname=dbname, user=user, password=password)
-            cur = conn.cursor()
-            cur.execute("SELECT count(*) FROM graph_coverage;")
-            ready = cur.fetchone()[0] > 0
-            conn.close()
-            if ready:
+        builder = compose.get_container("builder", include_all=True)
+        if builder.State == "exited":
+            if builder.ExitCode == 0:
                 return
-        except Exception as e:
-            last_err = e
+            stdout, _ = compose.get_logs("builder")
+            tail = "\n".join(stdout.splitlines()[-30:])
+            pytest.exit(f"builder exited {builder.ExitCode} (last 30 log lines):\n{tail}")
         time.sleep(3)
-    raise TimeoutError(f"Graph not ready after {timeout}s. Last error: {last_err}")
+    pytest.exit(f"builder not done after {timeout}s (last state: {builder.State})")
 
 
 @pytest.fixture(scope="session")
 def running_stack():
     """Owns the docker-compose lifecycle: brings the db/loader/builder chain up
-    once per session, waits until the graph is actually built, then yields the
-    live DockerCompose object so callers can exec commands inside its containers.
+    once per session, waits until the builder has exited successfully (end of
+    the pipeline), then yields the live DockerCompose object so callers can exec
+    commands inside its containers.
     Single source of truth for the running stack."""
     saved = {k: os.environ.get(k) for k in TEST_ENV}
     os.environ.update(TEST_ENV)
@@ -59,23 +59,15 @@ def running_stack():
             services=["db", "loader", "builder"],
         )
 
-        # Garde-fou : vérifié AVANT le with, donc aucun down possible sur le mauvais projet
+        # Guardrail: checked BEFORE `with`, so up/down can never target the dev stack
         project = compose.get_config()["name"]
         if project != TEST_ENV["COMPOSE_PROJECT_NAME"]:
-            raise RuntimeError(f"Projet Compose inattendu : {project!r}, arrêt avant tout up/down")
+            pytest.exit(f"Unexpected Compose project: {project!r}, aborting before any up/down")
 
         with compose:
-            host = compose.get_service_host("db", 5432)
-            if host == "0.0.0.0":
-                host = "127.0.0.1"
-            port = int(compose.get_service_port("db", 5432))
-
-            _wait_until_graph_ready(
-                host, port,
-                dbname=env["PGDATABASE"], user=env["PGUSER"], password=env["PGPASSWORD"],
-            )
+            _wait_until_builder_done(compose)
             yield compose
-        # sortie du with -> down --volumes, l'env de test est encore en place
+        # leaving `with` -> down --volumes; TEST_ENV is still set, so down targets sre_test
     finally:
         for k, v in saved.items():
             if v is None:
