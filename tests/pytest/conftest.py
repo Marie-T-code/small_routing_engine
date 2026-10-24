@@ -114,7 +114,8 @@ def client(db_coords):
     os.environ["PGPORT"] = str(db_coords["port"])
 
     # FLASK_PORT: config.py crashes on int(None); value irrelevant for tests.
-    os.environ["FLASK_PORT"] = env.get("FLASK_PORT", "5000")
+    os.environ["FLASK_PORT"] = env["FLASK_PORT"]
+    os.environ["FLASK_DEBUG"] = env["FLASK_DEBUG"]
 
     from app import create_app
 
