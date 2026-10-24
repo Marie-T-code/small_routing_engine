@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help build pipeline up down psql export-sql test-api
+.PHONY: help build pipeline up down psql export-sql test-api pytest
 
 help:
 	@echo "make build      - rebuild Docker images"
@@ -34,3 +34,6 @@ export-sql:
 
 test-api:
 	bash tests/curl/test_api.sh
+
+pytest:
+	pytest -v tests/pytest
