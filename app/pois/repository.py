@@ -6,7 +6,7 @@ import psycopg2
 from pois.models import POI
 from pois.enums import POICategory
 from pois.exceptions import POISearchError, POIRouteNotFoundError
-from utils.db_errors import parse_pg_error_code
+from utils.db_errors import parse_pg_error_code, parse_pg_error_message
 from utils.exceptions import PointOutOfCoverageError
 
 class POIRepository:
@@ -20,17 +20,20 @@ class POIRepository:
                 cursor.execute("SELECT is_within_coverage(%s, %s)", (lat_start, lon_start))
                 cursor.execute("SELECT is_within_coverage(%s, %s)", (lat_end, lon_end))
         except psycopg2.Error as e:
-            code = parse_pg_error_code(e.pgerror)
-            if code == 'COVERAGE:OUT_OF_BOUNDS':
-                raise PointOutOfCoverageError(e.pgerror) from e
+
+            # Expected error: clean, user-facing message. Unexpected: full pgerror for the logs
+            message = e.diag.message_primary
+            if parse_pg_error_code(message) == 'COVERAGE:OUT_OF_BOUNDS':
+                raise PointOutOfCoverageError(parse_pg_error_message(message)) from e
             raise POISearchError(e.pgerror) from e
+
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute("""
                     SELECT
                         p.name,
-                        p.amenity, 
-                        p.category, 
+                        p.amenity,
+                        p.category,
                         ST_X(ST_Transform (p.geom, 4326)) AS lon,
                         ST_Y(ST_Transform (p.geom, 4326)) AS lat,
                         ST_Distance(p.geom, r.route_geom_graph) AS distance_m
@@ -41,20 +44,22 @@ class POIRepository:
                     ) r
                     WHERE ST_DWithin(p.geom, r.route_geom_graph, %s)
                     AND p.category = %s
-                    ORDER BY distance_m""", 
+                    ORDER BY distance_m""",
                     (lat_start, lon_start, lat_end, lon_end, radius_m,category.value))
                 rows = cursor.fetchall()
         except psycopg2.Error as e:
-            code = parse_pg_error_code(e.pgerror)
-            if code == 'ROUTING:NO_PATH':
-                raise POIRouteNotFoundError(e.pgerror) from e
+            # Expected error: clean, user-facing message. Unexpected: full pgerror for the logs
+            message = e.diag.message_primary
+            if parse_pg_error_code(message) == 'ROUTING:NO_PATH':
+                raise POIRouteNotFoundError(parse_pg_error_message(message)) from e
             raise POISearchError(e.pgerror) from e
+
         pois = [
             POI(
-                name=row[0], 
-                amenity=row[1], 
-                category=POICategory(row[2]), 
-                distance_m=row[5], 
+                name=row[0],
+                amenity=row[1],
+                category=POICategory(row[2]),
+                distance_m=row[5],
                 lat=row[4],
                 lon=row[3],
                 )

@@ -9,7 +9,6 @@ from config import get_db_conn
 from routes.repository import RouteRepository
 from routes.service import RouteService
 from routes.dto import RouteSearchRequest
-from utils.db_errors import parse_pg_error_message
 import logging
 from routes.exceptions import RouteNotFoundError, InvalidCoordinatesError, InvalidSpeedError
 from utils.exceptions import PointOutOfCoverageError, SamePointError
@@ -35,7 +34,7 @@ def get_route():
                 "status": "error",
                 "message": "Missing parameters. Expected :lat1, lon1, lat2, lon2, speed_kmh"
             }), 400
-        
+
         conn = get_db_conn()
         repo = RouteRepository(conn)
         service = RouteService(repo)
@@ -43,7 +42,7 @@ def get_route():
 
         route = service.search(routeSearch)
 
-        
+
         return jsonify(route.result), 200
     except InvalidCoordinatesError as e:
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -52,11 +51,9 @@ def get_route():
     except SamePointError as e:
         return jsonify({"status": "error", "message": str(e)}), 400
     except PointOutOfCoverageError as e:
-        message = parse_pg_error_message(str(e))
-        return jsonify({"status": "error", "message": message}), 422
+        return jsonify({"status": "error", "message": str(e)}), 422
     except RouteNotFoundError as e:
-        message = parse_pg_error_message(str(e))
-        return jsonify({"status": "error", "message": message}), 404
+        return jsonify({"status": "error", "message": str(e)}), 404
     except Exception as e:
         logger.exception("Unhandled error on %s", request.path)
         return jsonify({"status": "error", "message": "An unexpected error occurred"}), 500
