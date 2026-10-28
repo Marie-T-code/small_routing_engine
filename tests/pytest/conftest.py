@@ -11,7 +11,8 @@ from testcontainers.compose import DockerCompose
 TEST_ENV = {
     "COMPOSE_PROJECT_NAME": "sre_test",
     "COMPOSE_PROFILES": "pipeline",
-    "PG_PORT": "0", # 0 = OS picks a free host port (no collisions); read back via get_service_port()
+    # 0 = OS picks a free host port (no collisions); read back via get_service_port()
+    "PG_PORT": "0",
 }
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 env = dotenv_values(PROJECT_ROOT / ".env")
@@ -100,9 +101,9 @@ def client(db_coords):
 
     Credentials come from .env (single source of truth, shared with compose).
     Host/port come from the running container (dynamic), never from a file.
-    config.py validates required env vars at import, so we populate them all
-    BEFORE importing create_app.
-    """
+    config.py validates the DB vars at import, so we populate them
+    BEFORE importing create_app. The FLASK_* vars are not needed:
+    they are only read when launching the dev server."""
 
     # Credentials: static, from .env (single source of truth).
     os.environ["PGDATABASE"] = env["PGDATABASE"]
@@ -112,10 +113,6 @@ def client(db_coords):
     # Host/port: dynamic, from the running container (never from a file).
     os.environ["PGHOST"] = db_coords["host"]
     os.environ["PGPORT"] = str(db_coords["port"])
-
-    # FLASK_PORT: config.py crashes on int(None); value irrelevant for tests.
-    os.environ["FLASK_PORT"] = env["FLASK_PORT"]
-    os.environ["FLASK_DEBUG"] = env["FLASK_DEBUG"]
 
     from app import create_app
 
