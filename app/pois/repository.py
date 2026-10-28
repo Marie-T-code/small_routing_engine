@@ -7,7 +7,7 @@ from pois.models import POI
 from pois.enums import POICategory
 from pois.exceptions import POISearchError, POIRouteNotFoundError
 from utils.db_errors import parse_pg_error_code, parse_pg_error_message
-from utils.exceptions import PointOutOfCoverageError
+from utils.coverage import check_within_coverage
 
 class POIRepository:
     def __init__(self,conn):
@@ -15,17 +15,9 @@ class POIRepository:
 
     def find_pois_along_route(self,lat_start: float, lon_start: float, lat_end: float, lon_end: float, radius_m: float, category: POICategory)-> list[POI]:
         # --- fail-fast coverage check : reject out-of-zone points before running the engine ---
-        try:
-            with self.connection.cursor() as cursor:
-                cursor.execute("SELECT is_within_coverage(%s, %s)", (lat_start, lon_start))
-                cursor.execute("SELECT is_within_coverage(%s, %s)", (lat_end, lon_end))
-        except psycopg2.Error as e:
-
-            # Expected error: clean, user-facing message. Unexpected: full pgerror for the logs
-            message = e.diag.message_primary
-            if parse_pg_error_code(message) == 'COVERAGE:OUT_OF_BOUNDS':
-                raise PointOutOfCoverageError(parse_pg_error_message(message)) from e
-            raise POISearchError(e.pgerror) from e
+        
+        check_within_coverage(self.connection, lat_start, lon_start)
+        check_within_coverage(self.connection, lat_end, lon_end)
 
         try:
             with self.connection.cursor() as cursor:
