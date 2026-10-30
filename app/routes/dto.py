@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 from routes.exceptions import InvalidCoordinatesError, InvalidSpeedError
-from utils.exceptions import SamePointError  
+from utils.exceptions import SamePointError
 
 @dataclass
 class RouteSearchRequest:
@@ -16,7 +16,7 @@ class RouteSearchRequest:
     speed_kmh: float
 
 
-    def validate(self): 
+    def __post_init__(self):
         coords = {
             "lat_start": self.lat_start,
             "lon_start": self.lon_start,

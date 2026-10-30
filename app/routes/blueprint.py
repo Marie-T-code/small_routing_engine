@@ -35,10 +35,11 @@ def get_route():
                 "message": "Missing parameters. Expected :lat_start, lon_start, lat_end, lon_end, speed_kmh"
             }), 400
 
+        routeSearch = RouteSearchRequest(lat_start, lon_start, lat_end, lon_end, speed_kmh)
         conn = get_db_conn()
         repo = RouteRepository(conn)
         service = RouteService(repo)
-        routeSearch = RouteSearchRequest(lat_start, lon_start, lat_end, lon_end, speed_kmh)
+
 
         route = service.search(routeSearch)
 
