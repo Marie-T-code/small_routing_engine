@@ -55,27 +55,27 @@ echo "=== /api/route ==="
 # [NOMINAL] short urban route (~2km, one-way respected)
 check "[NOMINAL] short route → 200" "200" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
-    "$BASE_URL/api/route?lat1=46.9868901&lon1=3.1697954&lat2=46.98779081&lon2=3.16548461&speed_kmh=15")"
+    "$BASE_URL/api/route?lat_start=46.9868901&lon_start=3.1697954&lat_end=46.98779081&lon_end=3.16548461&speed_kmh=15")"
 
 # [NOMINAL] long route (~33km)
 check "[NOMINAL] long route → 200" "200" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
-    "$BASE_URL/api/route?lat1=46.86025&lon1=3.16577&lat2=47.1189&lon2=3.26215&speed_kmh=15")"
+    "$BASE_URL/api/route?lat_start=46.86025&lon_start=3.16577&lat_end=47.1189&lon_end=3.26215&speed_kmh=15")"
 
 # [ERROR] same point as start and end — rejected by fail-fast SamePointError → 400
 check "[ERROR] same point start=end → 400" "400" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
-    "$BASE_URL/api/route?lat1=46.9868901&lon1=3.1697954&lat2=46.9868901&lon2=3.1697954&speed_kmh=15")"
+    "$BASE_URL/api/route?lat_start=46.9868901&lon_start=3.1697954&lat_end=46.9868901&lon_end=3.1697954&speed_kmh=15")"
 
 # [ERROR] speed_kmh missing → 400
 check "[ERROR] speed_kmh missing → 400" "400" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
-    "$BASE_URL/api/route?lat1=46.9868901&lon1=3.1697954&lat2=46.98779081&lon2=3.16548461")"
+    "$BASE_URL/api/route?lat_start=46.9868901&lon_start=3.1697954&lat_end=46.98779081&lon_end=3.16548461")"
 
-# [ERROR] lat1 missing → 400
-check "[ERROR] lat1 missing → 400" "400" \
+# [ERROR] lat_start missing → 400
+check "[ERROR] lat_start missing → 400" "400" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
-    "$BASE_URL/api/route?lon1=3.1697954&lat2=46.98779081&lon2=3.16548461&speed_kmh=15")"
+    "$BASE_URL/api/route?lon_start=3.1697954&lat_end=46.98779081&lon_end=3.16548461&speed_kmh=15")"
 
 # [ERROR] all parameters missing → 400
 check "[ERROR] all parameters missing → 400" "400" \
@@ -85,17 +85,17 @@ check "[ERROR] all parameters missing → 400" "400" \
 # [ERROR] speed_kmh = 9 (too low, <= 10) → 400
 check "[ERROR] speed_kmh=9 too low → 400" "400" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
-    "$BASE_URL/api/route?lat1=46.9868901&lon1=3.1697954&lat2=46.98779081&lon2=3.16548461&speed_kmh=9")"
+    "$BASE_URL/api/route?lat_start=46.9868901&lon_start=3.1697954&lat_end=46.98779081&lon_end=3.16548461&speed_kmh=9")"
 
 # [ERROR] speed_kmh = 26 (too high, > 25) → 400
 check "[ERROR] speed_kmh=26 too high → 400" "400" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
-    "$BASE_URL/api/route?lat1=46.9868901&lon1=3.1697954&lat2=46.98779081&lon2=3.16548461&speed_kmh=26")"
+    "$BASE_URL/api/route?lat_start=46.9868901&lon_start=3.1697954&lat_end=46.98779081&lon_end=3.16548461&speed_kmh=26")"
 
 # [ERROR] coordinates out of coverage zone (Paris — Alésia / Gare de l'Est) → 422
 check "[ERROR] out of coverage zone → 422" "422" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
-    "$BASE_URL/api/route?lat1=48.827867&lon1=2.326583&lat2=48.876789&lon2=2.359446&speed_kmh=15")"
+    "$BASE_URL/api/route?lat_start=48.827867&lon_start=2.326583&lat_end=48.876789&lon_end=2.359446&speed_kmh=15")"
 
 
 # ---------------------------------------------------------------------------

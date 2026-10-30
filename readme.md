@@ -23,7 +23,7 @@ make up
 Once the pipeline completes, query a route:
 
 ```bash
-curl "http://localhost:5000/api/route?lat1=46.9862&lon1=3.1887&lat2=46.9877&lon2=3.1656&speed_kmh=15"
+curl "http://localhost:5000/api/route?lat_start=46.9862&lon_start=3.1887&lat_end=46.9877&lon_end=3.1656&speed_kmh=15"
 ```
 
 Response:
@@ -218,10 +218,10 @@ per-edge `reverse_cost`.
 
 | Param       | Type  | Required | Range       | Description              |
 |-------------|-------|----------|-------------|--------------------------|
-| `lat1`      | float | yes      | EPSG:4326   | Start latitude           |
-| `lon1`      | float | yes      | EPSG:4326   | Start longitude          |
-| `lat2`      | float | yes      | EPSG:4326   | End latitude             |
-| `lon2`      | float | yes      | EPSG:4326   | End longitude            |
+| `lat_start`      | float | yes      | EPSG:4326   | Start latitude           |
+| `lon_start`      | float | yes      | EPSG:4326   | Start longitude          |
+| `lat_end`      | float | yes      | EPSG:4326   | End latitude             |
+| `lon_end`      | float | yes      | EPSG:4326   | End longitude            |
 | `speed_kmh` | float | yes      | `(10, 25]`  | Cycling speed for ETA    |
 
 > **Why is `speed_kmh` required?** The PL/pgSQL function has a default
@@ -233,7 +233,7 @@ per-edge `reverse_cost`.
 **Example:**
 
 ```bash
-curl "http://localhost:5000/api/route?lat1=46.9862&lon1=3.1887&lat2=46.9877&lon2=3.1656&speed_kmh=15"
+curl "http://localhost:5000/api/route?lat_start=46.9862&lon_start=3.1887&lat_end=46.9877&lon_end=3.1656&speed_kmh=15"
 ```
 
 **Success response (`200 OK`):** GeoJSON Feature with route geometry and metrics.

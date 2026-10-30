@@ -5,10 +5,10 @@
 const NEVERS = [46.9896, 3.1591];
 const DEFAULT_SPEED_KMH = 15;
 const POI_RADIUS_M = 500;
-const map = L.map("map").setView(NEVERS, 14); 
+const map = L.map("map").setView(NEVERS, 14);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19, 
+    maxZoom: 19,
     attribution: "&copy; OpenStreetMap contributors",
 }).addTo(map);
 
@@ -24,7 +24,7 @@ let poiLayers = {};
 const info = document.getElementById("info");
 const poiPanel = document.getElementById("poi-panel");
 
-// -- click handler -- 
+// -- click handler --
 
 map.on("click", (e) => {
     // 3rd click (a route is already drawn) -> reset and start over.
@@ -45,7 +45,7 @@ map.on("click", (e) => {
     }
 });
 
-// --- reset route 
+// --- reset route
 
 function resetCycle(){
     if (markerA) { map.removeLayer(markerA); markerA = null; }
@@ -64,7 +64,7 @@ function resetCycle(){
 }
 
 // --- POI toggle ----
-// attach the same handler to all category buttons (DRY). 
+// attach the same handler to all category buttons (DRY).
 // Each button knows its catagory via data-category -> dataset.category.
 
 document.querySelectorAll(".poi-btn").forEach((btn) => {
@@ -87,9 +87,9 @@ document.querySelectorAll(".poi-btn").forEach((btn) => {
 
 
 async function drawRoute(a, b) {
-    const url = 
-        `/api/route?lat1=${a.lat}&lon1=${a.lng}` +
-        `&lat2=${b.lat}&lon2=${b.lng}`+
+    const url =
+        `/api/route?lat_start=${a.lat}&lon_start=${a.lng}` +
+        `&lat_end=${b.lat}&lon_end=${b.lng}`+
         `&speed_kmh=${DEFAULT_SPEED_KMH}`;
     info.textContent = "Computing route..."
 
@@ -113,7 +113,7 @@ async function drawRoute(a, b) {
         map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
 
         const p = data.properties || {};
-        info.textContent = 
+        info.textContent =
             `${p.distance_km?.toFixed(2)} km · ~${p.estimated_time_min?.toFixed(0)} min`;
     } catch (err) {
         info.textContent = "Network error - is the API up ?";
@@ -127,7 +127,7 @@ async function loadPois(category, btn) {
     if (!currentRoute) return;
 
     const { a, b } = currentRoute;
-    const url = 
+    const url =
     `/api/pois_search?lat_start=${a.lat}&lon_start=${a.lng}` +
     `&lat_end=${b.lat}&lon_end=${b.lng}` +
     `&category=${category}&radius_m=${POI_RADIUS_M}`;
