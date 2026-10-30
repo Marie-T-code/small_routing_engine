@@ -3,13 +3,14 @@
 # Exposes /api/route — computes a Dijkstra-based bicycle route and returns GeoJSON.
 # Exposes /api/coverage — shows the graph bounding box
 
+import logging
 
 from flask import Blueprint, jsonify, request
+
 from config import get_db_conn
 from routes.repository import RouteRepository
 from routes.service import RouteService
 from routes.dto import RouteSearchRequest
-import logging
 from routes.exceptions import RouteNotFoundError, InvalidCoordinatesError, InvalidSpeedError
 from utils.exceptions import PointOutOfCoverageError, SamePointError
 
@@ -27,23 +28,17 @@ def get_route():
         lat_end = request.args.get("lat_end", type=float)
         lon_end = request.args.get("lon_end", type=float)
         speed_kmh = request.args.get("speed_kmh", type=float)
-
-
         if None in (lat_start, lon_start, lat_end, lon_end, speed_kmh):
             return jsonify({
                 "status": "error",
-                "message": "Missing parameters. Expected :lat_start, lon_start, lat_end, lon_end, speed_kmh"
+                "message": "Missing or invalid parameters. "
+                "Expected: lat_start, lon_start, lat_end, lon_end, speed_kmh"
             }), 400
-
-        routeSearch = RouteSearchRequest(lat_start, lon_start, lat_end, lon_end, speed_kmh)
+        route_search = RouteSearchRequest(lat_start, lon_start, lat_end, lon_end, speed_kmh)
         conn = get_db_conn()
         repo = RouteRepository(conn)
         service = RouteService(repo)
-
-
-        route = service.search(routeSearch)
-
-
+        route = service.search(route_search)
         return jsonify(route.result), 200
     except InvalidCoordinatesError as e:
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -55,7 +50,7 @@ def get_route():
         return jsonify({"status": "error", "message": str(e)}), 422
     except RouteNotFoundError as e:
         return jsonify({"status": "error", "message": str(e)}), 404
-    except Exception as e:
+    except Exception:
         logger.exception("Unhandled error on %s", request.path)
         return jsonify({"status": "error", "message": "An unexpected error occurred"}), 500
     finally:
@@ -70,10 +65,9 @@ def get_coverage():
         conn = get_db_conn()
         repo = RouteRepository(conn)
         service = RouteService(repo)
-        get_coverage = service.get_coverage()
-
-        return jsonify(get_coverage), 200
-    except Exception as e:
+        coverage = service.get_coverage()
+        return jsonify(coverage), 200
+    except Exception:
         logger.exception("Unhandled error on %s", request.path)
         return jsonify({"status": "error", "message": "An unexpected error occurred"}), 500
     finally:

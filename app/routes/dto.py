@@ -1,5 +1,5 @@
 # dto.py —  data transfer objects for the route service
-#layer: DTO
+# layer: DTO
 # defines RouteSearchRequest (input validation) and RouteResponse (Wraps SQL GeoJSON output)
 # No use for a "model" module yet as the Database returns the geojson
 
