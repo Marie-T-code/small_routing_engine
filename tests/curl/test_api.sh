@@ -82,7 +82,7 @@ check "[ERROR] all parameters missing → 400" "400" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
     "$BASE_URL/api/route")"
 
-# [ERROR] speed_kmh = 9 (too low, <= 10) → 400
+# [ERROR] speed_kmh = 9 (too low, < 10) → 400
 check "[ERROR] speed_kmh=9 too low → 400" "400" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
     "$BASE_URL/api/route?lat_start=46.9868901&lon_start=3.1697954&lat_end=46.98779081&lon_end=3.16548461&speed_kmh=9")"

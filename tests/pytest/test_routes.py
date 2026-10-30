@@ -3,6 +3,11 @@ def test_route_missing_parameters(client):
     response = client.get("/api/route?lat_start=46.86&lon_start=3.16&lat_end=47.11&lon_end=3.26")
     assert response.status_code == 400
 
+# [EXPECTED_ERROR] NaN coordinate -> 400
+def test_route_nan_coordinate(client):
+    response = client.get("/api/route?lat_start=nan&lon_start=3.16&lat_end=47.11&lon_end=3.26&speed_kmh=15")
+    assert response.status_code == 400
+
 # [EXPECTED_ERROR] identical start/end points -> 400
 def test_route_same_point(client):
     response = client.get("/api/route?lat_start=46.9862051&lon_start=3.1886892&lat_end=46.9862051&lon_end=3.1886892&speed_kmh=15")

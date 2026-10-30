@@ -222,7 +222,7 @@ per-edge `reverse_cost`.
 | `lon_start`      | float | yes      | EPSG:4326   | Start longitude          |
 | `lat_end`      | float | yes      | EPSG:4326   | End latitude             |
 | `lon_end`      | float | yes      | EPSG:4326   | End longitude            |
-| `speed_kmh` | float | yes      | `(10, 25]`  | Cycling speed for ETA    |
+| `speed_kmh` | float | yes      | `[10, 25]`  | Cycling speed for ETA    |
 
 > **Why is `speed_kmh` required?** The PL/pgSQL function has a default
 > value (15 km/h), but the API layer enforces an explicit value to make
