@@ -2,16 +2,17 @@
 # Layer : Blueprint
 # Exposes /api/pois_search — finds points of interest within a given radius along a route.
 
+import logging
 from flask import Blueprint, jsonify, request
 from config import get_db_conn
 from pois.repository import POIRepository
 from pois.service import POIService
 from pois.dto import POISearchRequest
-from pois.enums import POICategory
 from pois.exceptions import POIRouteNotFoundError, InvalidRadiusError, InvalidCategoryError
 from utils.exceptions import PointOutOfCoverageError, SamePointError
 blueprint_pois = Blueprint("blueprint_pois", __name__)
 
+logger = logging.getLogger(__name__)
 
 @blueprint_pois.route("/api/pois_search", methods=["GET"])
 def get_route():
@@ -30,18 +31,11 @@ def get_route():
                 "message": "missing parameters. Expected : lat_start, lat_end, lon_start, lon_end, category, radius_m"
             }), 400
 
-        try:
-            category = POICategory(category)
-        except ValueError as e:
-            raise InvalidCategoryError(
-                "Invalid category. Expected : bike, culture, services, catering"
-            ) from e
 
+        POISearch = POISearchRequest(lat_start, lon_start, lat_end, lon_end, category, radius_m)
         conn = get_db_conn()
         repo = POIRepository(conn)
         service = POIService(repo)
-        POISearch = POISearchRequest(lat_start, lon_start, lat_end, lon_end, category, radius_m)
-
         pois = service.search(POISearch)
         result = pois.to_geojson()
 
@@ -57,6 +51,7 @@ def get_route():
     except POIRouteNotFoundError as e:
         return jsonify({"status": "error", "message": str(e)}), 404
     except Exception:
+        logger.exception("Unhandled error on %s", request.path)
         return jsonify({"status": "error", "message": "An unexpected error occurred"}), 500
     finally:
         if conn:

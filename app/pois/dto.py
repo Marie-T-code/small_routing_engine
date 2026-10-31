@@ -5,8 +5,8 @@
 from dataclasses import dataclass
 from pois.enums import POICategory
 from pois.models import POI
-from pois.exceptions import InvalidRadiusError
-from utils.exceptions import SamePointError  
+from pois.exceptions import InvalidRadiusError, InvalidCategoryError
+from utils.exceptions import SamePointError
 
 
 @dataclass
@@ -17,9 +17,14 @@ class POISearchRequest:
     lon_end: float
     category: POICategory
     radius_m: float
-    def validate (self): 
-        # category is validated + converted at the blueprint layer (fail-fast, pre-DB).
-        # DTO owns business rules: identical points, then radius bounds.
+    def __post_init__(self):
+        try:
+            self.category = POICategory(self.category) # raw str accepted, converted in __post_init__
+        except ValueError as e:
+            valid = ", ".join(c.value for c in POICategory)
+            raise InvalidCategoryError(
+                f"Invalid category. Expected: {valid}"
+            ) from e
         if (self.lat_start, self.lon_start) == (self.lat_end, self.lon_end):
             raise SamePointError("Start and end points must differ")
         if self.radius_m <= 10 or self.radius_m > 1000:
@@ -31,7 +36,7 @@ class POISearchResponse:
 
     def to_geojson(self) -> dict:
         return{
-            "type": "FeatureCollection", 
+            "type": "FeatureCollection",
             "features": [{
                 "type": "Feature",
                 "geometry": {
@@ -39,12 +44,12 @@ class POISearchResponse:
                     "coordinates": [poi.lon, poi.lat]
                     },
                 "properties": {
-                    "name": poi.name, 
+                    "name": poi.name,
                     "amenity": poi.amenity,
                     "category": poi.category.value,
                     "distance_m": poi.distance_m
                     }
             }
-            for poi in self.pois  
+            for poi in self.pois
             ]
         }
