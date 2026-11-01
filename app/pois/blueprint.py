@@ -3,19 +3,24 @@
 # Exposes /api/pois_search — finds points of interest within a given radius along a route.
 
 import logging
+
 from flask import Blueprint, jsonify, request
+
 from config import get_db_conn
 from pois.repository import POIRepository
 from pois.service import POIService
 from pois.dto import POISearchRequest
 from pois.exceptions import POIRouteNotFoundError, InvalidRadiusError, InvalidCategoryError
 from utils.exceptions import PointOutOfCoverageError, SamePointError, InvalidCoordinatesError
+
+
 blueprint_pois = Blueprint("blueprint_pois", __name__)
 
 logger = logging.getLogger(__name__)
 
+
 @blueprint_pois.route("/api/pois_search", methods=["GET"])
-def get_route():
+def search_pois():
     conn = None
     try:
         lat_start = request.args.get("lat_start", type=float)
@@ -24,24 +29,21 @@ def get_route():
         lon_end = request.args.get("lon_end", type=float)
         category = request.args.get("category")
         radius_m = request.args.get("radius_m", type=float)
-
         if None in (lat_start, lon_start, lat_end, lon_end, category, radius_m):
             return jsonify({
                 "status": "error",
-                "message": "missing parameters. Expected : lat_start, lat_end, lon_start, lon_end, category, radius_m"
+                "message": "missing or invalid parameters."
+                " Expected: lat_start, lon_start, lat_end, lon_end, category, radius_m"
             }), 400
-
-
-        POISearch = POISearchRequest(lat_start, lon_start, lat_end, lon_end, category, radius_m)
+        poi_search = POISearchRequest(lat_start, lon_start, lat_end, lon_end, category, radius_m)
         conn = get_db_conn()
         repo = POIRepository(conn)
         service = POIService(repo)
-        pois = service.search(POISearch)
+        pois = service.search(poi_search)
         result = pois.to_geojson()
-
         return jsonify(result), 200
     except InvalidCoordinatesError as e:
-        return jsonify({"status": "error", "message": str(e)}),400
+        return jsonify({"status": "error", "message": str(e)}), 400
     except InvalidCategoryError as e:
         return jsonify({"status": "error", "message": str(e)}), 400
     except SamePointError as e:
@@ -58,4 +60,3 @@ def get_route():
     finally:
         if conn:
             conn.close()
-
