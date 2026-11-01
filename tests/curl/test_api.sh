@@ -124,7 +124,7 @@ check "[ERROR] category=zombie invalid → 400" "400" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
     "$BASE_URL/api/pois_search?lat_start=46.9868901&lon_start=3.1697954&lat_end=46.98779081&lon_end=3.16548461&category=zombie&radius_m=200")"
 
-# [ERROR] radius_m = 5 (too small, <= 10) → 400
+# [ERROR] radius_m = 5 (too small, < 10) → 400
 check "[ERROR] radius_m=5 too small → 400" "400" \
     "$(curl -s -o /dev/null -w "%{http_code}" \
     "$BASE_URL/api/pois_search?lat_start=46.9868901&lon_start=3.1697954&lat_end=46.98779081&lon_end=3.16548461&category=bike&radius_m=5")"

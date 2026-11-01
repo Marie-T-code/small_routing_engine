@@ -25,6 +25,12 @@ def test_pois_out_of_bounds(client):
     response = client.get("/api/pois_search?lat_start=48.8567&lon_start=2.3508&lat_end=48.8600&lon_end=2.3530&category=catering&radius_m=200")
     assert response.status_code == 422
 
+# [EXPECTED_ERROR] NaN coordinate -> 400
+def test_pois_nan_coordinate(client):
+    response = client.get("/api/pois_search?lat_start=nan&lon_start=3.16&lat_end=47.11&lon_end=3.26&category=catering&radius_m=200")
+    assert response.status_code == 400
+    assert "lat_start" in response.get_json()["message"]
+
 # [EXPECTED_ERROR] identical start/end points -> 400
 def test_pois_same_point(client):
     response = client.get("/api/pois_search?lat_start=46.9862051&lon_start=3.1886892&lat_end=46.9862051&lon_end=3.1886892&category=catering&radius_m=200")
@@ -37,4 +43,4 @@ def test_pois_valid_search(client):
     assert response.status_code == 200
     assert data["type"] == "FeatureCollection"
     assert "features" in data
-    assert len(data["features"]) > 0 
+    assert len(data["features"]) > 0
