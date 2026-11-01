@@ -7,10 +7,6 @@ class RouteNotFoundError(Exception):
     pass
 
 
-class InvalidCoordinatesError(Exception):
-    pass
-
-
 class InvalidSpeedError(Exception):
     pass
 

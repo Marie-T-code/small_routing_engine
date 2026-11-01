@@ -9,7 +9,7 @@ from pois.repository import POIRepository
 from pois.service import POIService
 from pois.dto import POISearchRequest
 from pois.exceptions import POIRouteNotFoundError, InvalidRadiusError, InvalidCategoryError
-from utils.exceptions import PointOutOfCoverageError, SamePointError
+from utils.exceptions import PointOutOfCoverageError, SamePointError, InvalidCoordinatesError
 blueprint_pois = Blueprint("blueprint_pois", __name__)
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,8 @@ def get_route():
         result = pois.to_geojson()
 
         return jsonify(result), 200
+    except InvalidCoordinatesError as e:
+        return jsonify({"status": "error", "message": str(e)}),400
     except InvalidCategoryError as e:
         return jsonify({"status": "error", "message": str(e)}), 400
     except SamePointError as e:

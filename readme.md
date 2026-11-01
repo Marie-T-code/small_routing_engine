@@ -352,7 +352,7 @@ point.
 | `lat_end`   | float | yes      | EPSG:4326                                | End latitude                 |
 | `lon_end`   | float | yes      | EPSG:4326                                | End longitude                |
 | `category`  | str   | yes      | `bike`, `culture`, `services`, `catering`| POI category to search       |
-| `radius_m`  | float | yes      | >10 and ≤1000                            | Search radius around the route (meters) |
+| `radius_m`  | float | yes      | 10 to 1000                            | Search radius around the route (meters) |
 
 > **Note on category values.** The API currently accepts the English enum
 > values above. The underlying dataset stores French category labels
@@ -392,7 +392,7 @@ ordered by distance.
 
 | HTTP | Error code        | Cause                                              |
 |------|-------------------|----------------------------------------------------|
-| 400  | (validation)      | Missing parameters, invalid category, or `radius_m` outside `(10, 1000]` |
+| 400  | (validation)      | Missing parameters, invalid category, or `radius_m` outside `[10, 1000]` |
 | 404  | `ROUTING:NO_PATH` | No route found between the two points              |
 | 500  | (unexpected)      | Internal error                                     |
 

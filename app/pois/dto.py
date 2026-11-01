@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pois.enums import POICategory
 from pois.models import POI
 from pois.exceptions import InvalidRadiusError, InvalidCategoryError
-from utils.exceptions import SamePointError
+from utils.validation import check_endpoints
 
 
 @dataclass
@@ -25,9 +25,8 @@ class POISearchRequest:
             raise InvalidCategoryError(
                 f"Invalid category. Expected: {valid}"
             ) from e
-        if (self.lat_start, self.lon_start) == (self.lat_end, self.lon_end):
-            raise SamePointError("Start and end points must differ")
-        if self.radius_m <= 10 or self.radius_m > 1000:
+        check_endpoints(self.lat_start, self.lon_start, self.lat_end, self.lon_end)
+        if not (10 <= self.radius_m <= 1000):
             raise InvalidRadiusError("Invalid radius, please choose a value between 10 and 1000 meters")
 
 @dataclass

@@ -4,5 +4,9 @@
 class PointOutOfCoverageError(Exception):
     pass
 
+
 class SamePointError(Exception):
+    pass
+
+class InvalidCoordinatesError(Exception):
     pass
