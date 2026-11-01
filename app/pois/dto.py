@@ -3,6 +3,7 @@
 # Defines POISearchRequest (input validation) and POISearchResponse (GeoJSON output).
 
 from dataclasses import dataclass
+
 from pois.enums import POICategory
 from pois.models import POI
 from pois.exceptions import InvalidRadiusError, InvalidCategoryError
@@ -17,9 +18,11 @@ class POISearchRequest:
     lon_end: float
     category: POICategory
     radius_m: float
+
     def __post_init__(self):
         try:
-            self.category = POICategory(self.category) # raw str accepted, converted in __post_init__
+            self.category = POICategory(self.category)
+            # raw str accepted, converted in __post_init__
         except ValueError as e:
             valid = ", ".join(c.value for c in POICategory)
             raise InvalidCategoryError(
@@ -27,14 +30,17 @@ class POISearchRequest:
             ) from e
         check_endpoints(self.lat_start, self.lon_start, self.lat_end, self.lon_end)
         if not (10 <= self.radius_m <= 1000):
-            raise InvalidRadiusError("Invalid radius, please choose a value between 10 and 1000 meters")
+            raise InvalidRadiusError(
+                "Invalid radius, please choose a value between 10 and 1000 meters"
+                )
+
 
 @dataclass
 class POISearchResponse:
     pois: list[POI]
 
     def to_geojson(self) -> dict:
-        return{
+        return {
             "type": "FeatureCollection",
             "features": [{
                 "type": "Feature",
@@ -49,7 +55,7 @@ class POISearchResponse:
                     "distance_m": poi.distance_m,
                     "osm_id": poi.osm_id
                     }
-            }
-            for poi in self.pois
+                }
+                for poi in self.pois
             ]
         }

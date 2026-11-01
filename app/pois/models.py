@@ -3,7 +3,9 @@
 # Defines the POI dataclass — represents a single point of interest returned by the database.
 
 from dataclasses import dataclass
+
 from pois.enums import POICategory
+
 
 @dataclass
 class POI:
