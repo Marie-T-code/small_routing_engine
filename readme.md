@@ -381,6 +381,7 @@ ordered by distance.
         "name": "La Panade",
         "amenity": "fast_food",
         "category": "catering",
+        "osm_id": "4852114878"
         "distance_m": 106.21
       }
     }

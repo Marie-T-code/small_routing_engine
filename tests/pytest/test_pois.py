@@ -44,3 +44,4 @@ def test_pois_valid_search(client):
     assert data["type"] == "FeatureCollection"
     assert "features" in data
     assert len(data["features"]) > 0
+    assert "osm_id" in data["features"][0]["properties"]

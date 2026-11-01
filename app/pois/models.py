@@ -13,5 +13,4 @@ class POI:
     distance_m: float
     lat: float
     lon: float
-    fid: int | None = None
-    osm_id: str | None = None
+    osm_id: str | None

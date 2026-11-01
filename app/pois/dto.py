@@ -46,7 +46,8 @@ class POISearchResponse:
                     "name": poi.name,
                     "amenity": poi.amenity,
                     "category": poi.category.value,
-                    "distance_m": poi.distance_m
+                    "distance_m": poi.distance_m,
+                    "osm_id": poi.osm_id
                     }
             }
             for poi in self.pois

@@ -15,7 +15,7 @@ class POIRepository:
 
     def find_pois_along_route(self,lat_start: float, lon_start: float, lat_end: float, lon_end: float, radius_m: float, category: POICategory)-> list[POI]:
         # --- fail-fast coverage check : reject out-of-zone points before running the engine ---
-        
+
         check_within_coverage(self.connection, lat_start, lon_start)
         check_within_coverage(self.connection, lat_end, lon_end)
 
@@ -28,7 +28,8 @@ class POIRepository:
                         p.category,
                         ST_X(ST_Transform (p.geom, 4326)) AS lon,
                         ST_Y(ST_Transform (p.geom, 4326)) AS lat,
-                        ST_Distance(p.geom, r.route_geom_graph) AS distance_m
+                        ST_Distance(p.geom, r.route_geom_graph) AS distance_m,
+                        p.osm_id
                     FROM public.pois p
                     CROSS JOIN (
                         SELECT route_geom_graph
@@ -54,6 +55,7 @@ class POIRepository:
                 distance_m=row[5],
                 lat=row[4],
                 lon=row[3],
+                osm_id =row[6]
                 )
             for row in rows
         ]
