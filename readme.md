@@ -494,7 +494,7 @@ Expected response:
 
 ```json
 {
-  "message": "Database connection is a success !",
+  "message": "Database connection successful",
   "status": "success"
 }
 ```
