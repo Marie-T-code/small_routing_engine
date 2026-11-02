@@ -8,5 +8,6 @@ class PointOutOfCoverageError(Exception):
 class SamePointError(Exception):
     pass
 
+
 class InvalidCoordinatesError(Exception):
     pass

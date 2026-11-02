@@ -12,7 +12,7 @@ from routes.repository import RouteRepository
 from routes.service import RouteService
 from routes.dto import RouteSearchRequest
 from routes.exceptions import RouteNotFoundError, InvalidSpeedError
-from utils.exceptions import PointOutOfCoverageError,InvalidCoordinatesError, SamePointError
+from utils.exceptions import PointOutOfCoverageError, InvalidCoordinatesError, SamePointError
 
 logger = logging.getLogger(__name__)
 

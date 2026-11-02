@@ -1,5 +1,5 @@
 # coverage.py — shared coverage check; used by every repository
-# Layer : Repository (shared helper)
+# Layer : Repository (shared helper)
 
 import psycopg2
 
