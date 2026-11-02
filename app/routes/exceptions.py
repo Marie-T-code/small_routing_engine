@@ -1,13 +1,16 @@
 # exceptions.py — custom exceptions for the Routes service
 # Layer : Exception
-# Defines domain-specific errors : route not found, invalid coordinates,
-# invalid speed, database error
+# Expected errors inherit from ClientError (carry their HTTP status).
+# RouteSearchError is unexpected (DB failure) and stays a plain Exception -> 500.
 
-class RouteNotFoundError(Exception):
-    pass
+from utils.exceptions import ClientError
 
 
-class InvalidSpeedError(Exception):
+class RouteNotFoundError(ClientError):
+    status_code = 404
+
+
+class InvalidSpeedError(ClientError):
     pass
 
 

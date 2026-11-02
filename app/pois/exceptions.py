@@ -1,18 +1,22 @@
 # exceptions.py — custom exceptions for the POI service
 # Layer : Exception
-# Defines domain-specific errors : invalid category, invalid radius, database error.
+# Expected errors inherit from ClientError (carry their HTTP status).
+# POISearchError is unexpected (DB failure) and stays a plain Exception -> 500.
 
-class InvalidCategoryError(Exception):
+from utils.exceptions import ClientError
+
+
+class InvalidCategoryError(ClientError):
     pass
 
 
-class InvalidRadiusError(Exception):
+class InvalidRadiusError(ClientError):
     pass
+
+
+class POIRouteNotFoundError(ClientError):
+    status_code = 404
 
 
 class POISearchError(Exception):
-    pass
-
-
-class POIRouteNotFoundError(Exception):
     pass

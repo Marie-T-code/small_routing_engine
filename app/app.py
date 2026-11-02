@@ -10,6 +10,7 @@ import psycopg2
 from flask import Flask, send_from_directory
 
 from config import get_db_conn, get_server_settings
+from errors import register_error_handlers
 from routes.blueprint import blueprint_route
 from pois.blueprint import blueprint_pois
 from blueprint_health import blueprint_health
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     app = Flask(__name__)
+    register_error_handlers(app)
     app.register_blueprint(blueprint_route)
     app.register_blueprint(blueprint_pois)
     app.register_blueprint(blueprint_health)
