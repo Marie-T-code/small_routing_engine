@@ -2,3 +2,5 @@
 pytest==9.0.3
 testcontainers==4.14.2
 python-dotenv==1.2.2
+pycodestyle==2.15.0
+pyflakes==4.1.0
