@@ -1,3 +1,5 @@
+LAST REVIEWED: JUNE 2026
+
 # Error codes — SRE reference
 
 This document catalogues every structured error the engine can raise,

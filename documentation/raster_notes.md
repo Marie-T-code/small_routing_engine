@@ -1,3 +1,5 @@
+LAST REVIEWED: MAY 2026
+
 # raster notes
 
 ## Deriving a single territory DEM from two departments at different native resolutions

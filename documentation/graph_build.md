@@ -1,3 +1,5 @@
+LAST REVIEWED: MAY 2026
+
 # How to build a graph using pgRouting
 
 This document explains how `pgr_createTopology()` builds a routable

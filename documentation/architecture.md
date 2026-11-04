@@ -1,3 +1,5 @@
+LAST REVIEWED: MAY 2026
+
 # Project architecture
 
 This document describes how the project is structured as a whole: the

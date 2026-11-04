@@ -1,3 +1,5 @@
+LAST REVIEWED: MAY 2026
+
 # Data quality
 
 This document explains the **data quality choices** that shape the

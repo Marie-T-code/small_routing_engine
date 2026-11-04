@@ -1,3 +1,5 @@
+LAST REVIEWED: MAY 2026
+
 # Functions reference
 
 This document is the reference for the **production routing functions** —

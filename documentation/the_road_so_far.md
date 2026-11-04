@@ -1,3 +1,5 @@
+LAST REVIEWED: MAY 2026
+
 # The Road So Far
 
 Chronological log of the `small_routing_engine` project, grouped by month.

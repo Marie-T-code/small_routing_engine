@@ -1,3 +1,5 @@
+LAST REVIEWED: MAY 2026
+
 # Data model
 
 This document describes the spatial data structures used by the

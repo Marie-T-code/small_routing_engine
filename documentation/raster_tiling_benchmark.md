@@ -1,9 +1,11 @@
+LAST REVIEWED: MAY 2026
+
 # Raster tiling — tile-size benchmark
 
 This document records **why the DEM is imported with `-t 64x64`** in
 `import_dem.sh`. It captures a one-shot benchmark, the reasoning behind
 the choice, and — more usefully for the future — a dimensioning principle
-for tiling *any* raster, not just this one.
+for tiling future raster in this project.
 
 **A note on how to read this document.** It deliberately separates three
 kinds of statement, because they carry different weight:

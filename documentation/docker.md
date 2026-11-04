@@ -1,3 +1,7 @@
+LAST REVIEWED: MAY 2026
+
+Note : [known issues](#known-issues-in-development) is VERY much out of date. TLDR if you docker compose --profile XX up then docker compose --profile xx down or you'll get orphan networks from exited but not removed services. 
+
 # docker orchestration
 
 This document describes the services and what they are in charge of,
