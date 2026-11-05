@@ -1,4 +1,4 @@
--- 002_create_tables_routes_v1.sql
+-- DB/init_db/002_create_tables_routes_v1.sql
 -- Purpose: Create the edges table used for pgRouting
 
 CREATE TABLE public.routes_v1 (
@@ -21,5 +21,12 @@ CREATE TABLE public.routes_v1 (
     cost double precision,
     reverse_cost double precision,
     source bigint,
-    target bigint
+    target bigint,
+
+    -- slope-aware costs (elevation on edges beginning/end and slope-aware costs)
+    z_start double precision,
+    z_end double precision,
+    slope_pct double precision,
+    cost_slope double precision,
+    reverse_cost_slope double precision
 );
