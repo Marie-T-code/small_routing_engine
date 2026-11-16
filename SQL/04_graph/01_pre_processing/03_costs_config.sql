@@ -6,13 +6,13 @@
 -- ---------------------------------------------------------------------
 
 
-
-
-BEGIN;
-
 \echo ''
 \echo '>>> START : /SQL/04_graph/01_pre_processing/03_costs_config.sql'
 \echo ''
+
+BEGIN;
+
+
 
 \echo '--- Setting cost and reverse_cost from length_m (meters) ---'
 
@@ -23,8 +23,8 @@ SET cost =
   CASE WHEN oneway = '-1' THEN -1
   ELSE length_m
   END,
-    reverse_cost = 
-  CASE WHEN oneway IN ('yes','true','1') = 'yes' THEN -1 
+    reverse_cost =
+  CASE WHEN oneway IN ('yes','true','1') = 'yes' THEN -1
   ELSE length_m
   END
 WHERE length_m IS NOT NULL;
@@ -39,10 +39,10 @@ FROM public.routes_v1;
 
 \echo '✅ Costs configured: cost and reverse_cost are now set to length_m (meters).'
 
-\echo ''
-\echo '<<< END   : /SQL/04_graph/01_pre_processing/03_costs_config.sql'
-\echo ''
+
 
 COMMIT;
 
-
+\echo ''
+\echo '<<< END   : /SQL/04_graph/01_pre_processing/03_costs_config.sql'
+\echo ''
