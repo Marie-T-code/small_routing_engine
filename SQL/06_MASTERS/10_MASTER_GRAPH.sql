@@ -14,11 +14,19 @@
 \echo '--- Compute edge lengths in meters (length_m) for each edge of the future graph. ---'
 \i /SQL/04_graph/01_pre_processing/02_add_length_m.sql
 
+\echo '--- removing false edges from the routes_v1(edges) table ---'
+\i /SQL/04_graph/01_pre_processing/04_edges_cleaning.sql
+
+\echo '--- Read edge elevations from the DEM and compute slope percentages ---'
+\i /SQL/04_graph/01_pre_processing/02a_slope_pct.sql
+
+\echo '--- add engine slope-reliability rules ---'
+\i /SQL/04_graph/01_pre_processing/02b_slope_reliable_engine.sql
+
 \echo '--- Configure routing weights (cost / reverse_cost) before building the pgRouting topology. ---'
 \i /SQL/04_graph/01_pre_processing/03_costs_config.sql
 
-\echo '--- removing false edges from the routes_v1(edges) table ---'
-\i /SQL/04_graph/01_pre_processing/04_edges_cleaning.sql
+
 
 \echo '--- GRAPH CREATION ---'
 \echo '----------------------'
@@ -65,7 +73,7 @@
 \echo '--- Execute post-build graph state check ---'
 SELECT assert_graph_ready();
 
-\echo '--- POST-BUILD GRAPH BOUNGIN BOX ---'
+\echo '--- POST-BUILD GRAPH BOUNDING BOX ---'
 \echo '-----------------------------------'
 
 \echo 'Computes graph coverage and stores the resulting polygon (EPSG:4326) in graph_coverage.'
@@ -73,5 +81,5 @@ SELECT assert_graph_ready();
 
 
 \echo ''
-\echo '>>> END : /SQL/06_MASTERS/10_MASTER_GRAPH.sql'
+\echo '<<< END : /SQL/06_MASTERS/10_MASTER_GRAPH.sql'
 \echo ''

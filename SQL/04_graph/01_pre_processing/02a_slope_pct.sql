@@ -1,14 +1,20 @@
 -- SQL/04_graph/01_pre_processing/02a_slope_pct.sql
--- populate altitudes on edges start and and (z_start, z_end) and calculate slope percentage of each edge
--- guardrail : will not work on NULL or <= values in length_m
+-- populate altitudes on edges start and end (z_start, z_end) and calculate slope percentage of each edge
+-- Precondition: length_m is non NULL and > 0, checked by the guardrail below.
+-- It should never fire when 04_edges_cleaning.sql runs first; if it does, check the MASTER order.
+
+\echo ''
+\echo '>>> START : /SQL/04_graph/01_pre_processing/02a_slope_pct.sql'
+\echo ''
 
 BEGIN;
+
 \echo 'guardrail : if no NULL or <= 0 values in length_m continue'
 DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM public.routes_v1
-        WHERE length_m is NULL OR length_m <= 0
+        WHERE length_m IS NULL OR length_m <= 0
     ) THEN
         RAISE EXCEPTION '[GRAPH:LENGTH_M_INVALID] length_m NULL or <= 0 values found' USING ERRCODE = 'P0001';
     END IF;
@@ -50,4 +56,10 @@ SELECT
     ROUND(MAX(slope_pct)::numeric, 2) AS max_slope_pct
 FROM public.routes_v1;
 
+
 COMMIT;
+
+
+\echo ''
+\echo '<<< END   : /SQL/04_graph/01_pre_processing/02a_slope_pct.sql'
+\echo ''
