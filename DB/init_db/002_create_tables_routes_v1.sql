@@ -24,9 +24,17 @@ CREATE TABLE public.routes_v1 (
     target bigint,
 
     -- slope-aware costs (elevation on edges beginning/end and slope-aware costs)
+
     z_start double precision,
     z_end double precision,
     slope_pct double precision,
+
+    -- Slope reliability flag (blacklist logic):
+    -- every edge starts as reliable (DEFAULT true); reliability rules only ever set it to false.
+    -- NOT NULL: SQL boolean logic is three-valued (true / false / NULL), and NULL silently
+    -- escapes WHERE filters and CASE branches. Only true or false are allowed here.
+    slope_reliable boolean NOT NULL DEFAULT true,
+
     cost_slope double precision,
     reverse_cost_slope double precision
 );
