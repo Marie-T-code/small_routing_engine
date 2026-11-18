@@ -23,6 +23,9 @@
 \echo '--- add engine slope-reliability rules ---'
 \i /SQL/04_graph/01_pre_processing/02b_slope_reliable_engine.sql
 
+\echo '--- add Nevers slope-reliability rules ---'
+\i /SQL/04_graph/01_pre_processing/02c_slope_reliable_nevers.sql
+
 \echo '--- Configure routing weights (cost / reverse_cost) before building the pgRouting topology. ---'
 \i /SQL/04_graph/01_pre_processing/03_costs_config.sql
 
