@@ -20,11 +20,11 @@ BEGIN;
 -- (These values are used as weights by Dijkstra)
 UPDATE public.routes_v1
 SET cost =
-  CASE WHEN oneway = '-1' THEN -1
+  CASE WHEN oneway IN ('-1', 'reverse') THEN -1
   ELSE length_m
   END,
     reverse_cost =
-  CASE WHEN oneway IN ('yes','true','1') = 'yes' THEN -1
+  CASE WHEN oneway IN ('yes','true','1') THEN -1
   ELSE length_m
   END
 WHERE length_m IS NOT NULL;
@@ -37,9 +37,14 @@ SELECT
   MAX(length_m) AS max_m
 FROM public.routes_v1;
 
-\echo '✅ Costs configured: cost and reverse_cost are now set to length_m (meters).'
+\echo '--- Post-check directed costs (blocked forward and blocked reverse edges) ---'
 
+SELECT
+  COUNT(*) FILTER (WHERE cost = -1)         AS blocked_forward,
+  COUNT(*) FILTER (WHERE reverse_cost = -1) AS blocked_reverse
+FROM public.routes_v1;
 
+\echo ' Costs configured: cost and reverse_cost are now set to length_m (meters).'
 
 COMMIT;
 
