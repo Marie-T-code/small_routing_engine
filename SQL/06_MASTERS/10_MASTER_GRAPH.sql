@@ -29,6 +29,9 @@
 \echo '--- Configure routing weights (cost / reverse_cost) before building the pgRouting topology. ---'
 \i /SQL/04_graph/01_pre_processing/03_costs_config.sql
 
+\echo '--- Configure routing slope weights (cost_slope / reverse_cost_slope) before building the pgRouting topology.)'
+\i /SQL/04_graph/01_pre_processing/03b_slope_costs.sql
+
 
 
 \echo '--- GRAPH CREATION ---'
