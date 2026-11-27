@@ -27,7 +27,9 @@ SELECT
   cost,
   reverse_cost,
   geom,
-  length_m
+  length_m,
+  cost_slope,
+  reverse_cost_slope
 FROM public.routes_v1;
 
 
